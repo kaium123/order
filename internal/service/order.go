@@ -80,6 +80,14 @@ func (o *OrderReceiver) CancelOrder(ctx context.Context, reqParams *model.OrderC
 }
 
 func (o *OrderReceiver) FindAllOrders(ctx context.Context, reqParams *model.FindAllRequest) (*model.FindAllResponse, error) {
+	allOrders, err := o.redisCache.FindAllOrders(ctx, reqParams)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range allOrders {
+		fmt.Println(order)
+	}
 	orders, err := o.OrderRepository.FindAllOrders(ctx, reqParams)
 	if err != nil {
 		return nil, err

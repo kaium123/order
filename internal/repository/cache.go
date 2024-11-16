@@ -17,6 +17,7 @@ type IRedisCache interface {
 	StoreToken(ctx context.Context, key string, token string, expiry time.Duration) error
 	GetToken(ctx context.Context, key string) (string, error)
 	DeleteKey(ctx context.Context, key string) error
+	FindAllOrders(ctx context.Context, req *model.FindAllRequest) ([]model.Order, error)
 }
 
 type InitRedisCache struct {
@@ -27,6 +28,14 @@ type InitRedisCache struct {
 type redisCache struct {
 	client *redis.Client
 	log    *log.Logger
+}
+
+// NewRedisCache creates a new Redis client instance.
+func NewRedisCache(initRedisCache *InitRedisCache) IRedisCache {
+	return &redisCache{
+		client: initRedisCache.Client,
+		log:    initRedisCache.Log,
+	}
 }
 
 // CacheOrder stores the order in Redis as a hash and adds it to a sorted set for easy retrieval.
@@ -142,10 +151,59 @@ func (r *redisCache) DeleteKey(ctx context.Context, key string) error {
 	return nil
 }
 
-// NewRedisCache creates a new Redis client instance.
-func NewRedisCache(initRedisCache *InitRedisCache) IRedisCache {
-	return &redisCache{
-		client: initRedisCache.Client,
-		log:    initRedisCache.Log,
+// FindAllOrders retrieves orders from Redis based on the given filter and paginates them.
+func (t *redisCache) FindAllOrders(ctx context.Context, req *model.FindAllRequest) ([]model.Order, error) {
+	// Fetch order consignment IDs from the sorted set with score-based pagination (limit and offset)
+	zRangeResp, err := t.client.ZRangeByScoreWithScores(ctx, "orders", &redis.ZRangeBy{
+		Min:    "-inf", // Minimum score (start from the earliest order)
+		Max:    "+inf", // Maximum score (end at the latest order)
+		Offset: int64(req.Offset),
+		Count:  int64(req.Limit),
+	}).Result()
+
+	if err != nil {
+		t.log.Error(ctx, fmt.Sprintf("Error fetching orders from sorted set: %v", err))
+		return nil, err
 	}
+
+	// Initialize the list to store retrieved orders
+	var orders []model.Order
+
+	// For each order consignment ID, retrieve order details from the hash
+	for _, z := range zRangeResp {
+		orderKey := fmt.Sprintf("order:%s", z.Member)
+		orderData, err := t.client.HGetAll(ctx, orderKey).Result()
+		if err != nil {
+			t.log.Error(ctx, fmt.Sprintf("Error fetching order data for consignment ID %s: %v", z.Member, err))
+			continue
+		}
+
+		// Convert the hash data to an order object
+		order := model.Order{
+			OrderConsignmentID: orderData["consignment_id"],
+			MerchantOrderID:    orderData["merchant_order_id"],
+			OrderStatus:        orderData["order_status"],
+			CreatedAt:          parseTime(orderData["created_at"]), // Use a helper function to parse time
+			UpdatedAt:          parseTime(orderData["updated_at"]),
+		}
+
+		// Apply filtering if an order status is specified
+		if req.TransferStatus != "" && order.OrderStatus != req.TransferStatus {
+			continue // Skip this order if it doesn't match the filter
+		}
+
+		// Append the order to the result list
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
+// Helper function to parse time from a string
+func parseTime(timeStr string) time.Time {
+	parsedTime, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		return time.Time{} // Return zero value if parsing fails
+	}
+	return parsedTime
 }
