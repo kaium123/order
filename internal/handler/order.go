@@ -142,14 +142,10 @@ func (t *orderHandler) FindAllOrders(c echo.Context) error {
 
 func GetUserId(c echo.Context) (int64, error) {
 
-	userID, ok := c.Get("user_id").(string)
+	userID, ok := c.Get("user_id").(int64)
 	if !ok {
 		return 0, errors.New("user ID not found in context")
 	}
 
-	intUserId, err := strconv.Atoi(userID)
-	if err != nil {
-		return 0, errors.New("user ID not found in context")
-	}
-	return int64(intUserId), nil
+	return userID, nil
 }

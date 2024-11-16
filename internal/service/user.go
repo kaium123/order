@@ -43,6 +43,7 @@ func NewUser(initUserService *InitUserService) IAuth {
 
 // Login handles user login, generates JWT tokens, and saves them.
 func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginRequest) (*model.UserLoginResponse, error) {
+
 	// Validate user credentials
 	user, err := u.UserRepository.FindUserByUserNameOrEmail(ctx, reqLogin)
 	if err != nil {
@@ -51,6 +52,11 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 
 	// Compare the provided password with the stored hash
 	if !CheckPasswordHash(reqLogin.Password, user.PasswordHash) {
+		return nil, err
+	}
+
+	err = u.Logout(ctx, user.ID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -87,6 +93,19 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		return nil, err
 	}
 
+	// Store tokens in Redis
+	key := fmt.Sprintf("access_token:%s", accessToken)
+	err = u.redisCache.StoreToken(ctx, key, accessToken, 10*time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store access token: %w", err)
+	}
+
+	key = fmt.Sprintf("refresh_token:%s", refreshToken)
+	err = u.redisCache.StoreToken(ctx, key, refreshToken, 10*time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store refresh token: %w", err)
+	}
+
 	// Return the utils with tokens
 	return &model.UserLoginResponse{
 		AccessToken:  accessToken,
@@ -99,12 +118,12 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 // Logout handles user logout and invalidates the tokens.
 func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	// Remove the access and refresh tokens from the database and cache
-	err := u.UserRepository.RemoveAccessToken(ctx, userID)
+	accessTokens, err := u.UserRepository.RemoveAccessToken(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to remove access token: %v", err)
 	}
 
-	err = u.UserRepository.RemoveRefreshToken(ctx, userID)
+	refreshTokens, err := u.UserRepository.RemoveRefreshToken(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to remove refresh token: %v", err)
 	}
@@ -113,6 +132,21 @@ func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	err = u.redisCache.InvalidateSession(ctx, userID)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
+	}
+
+	for _, accessToken := range accessTokens {
+		key := fmt.Sprintf("access_token:%s", accessToken)
+		err := u.redisCache.DeleteKey(ctx, key)
+		if err != nil {
+			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
+		}
+	}
+	for _, refreshToken := range refreshTokens {
+		key := fmt.Sprintf("refresh_token:%s", refreshToken)
+		err := u.redisCache.DeleteKey(ctx, key)
+		if err != nil {
+			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
+		}
 	}
 
 	return nil

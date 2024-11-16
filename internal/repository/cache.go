@@ -14,6 +14,9 @@ type IRedisCache interface {
 	CacheOrder(ctx context.Context, order model.Order) error
 	CancelOrder(ctx context.Context, reqParams *model.OrderCancelRequest) error
 	InvalidateSession(ctx context.Context, userID int64) error
+	StoreToken(ctx context.Context, key string, token string, expiry time.Duration) error
+	GetToken(ctx context.Context, key string) (string, error)
+	DeleteKey(ctx context.Context, key string) error
 }
 
 type InitRedisCache struct {
@@ -99,6 +102,43 @@ func (r *redisCache) InvalidateSession(ctx context.Context, userID int64) error 
 	}
 
 	// If the session was invalidated successfully, return nil
+	return nil
+}
+
+// StoreAccessToken stores an access token in Redis with a specified expiration.
+func (r *redisCache) StoreToken(ctx context.Context, key string, token string, expiry time.Duration) error {
+	err := r.client.Set(ctx, key, token, expiry).Err()
+	if err != nil {
+		r.log.Error(ctx, fmt.Sprintf("Failed to store access token.", err))
+		return fmt.Errorf("failed to store access token: %w", err)
+	}
+	return nil
+}
+
+// GetAccessToken retrieves an access token from Redis for a user.
+func (r *redisCache) GetToken(ctx context.Context, key string) (string, error) {
+	token, err := r.client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		r.log.Error(ctx, fmt.Sprintf("Access token not found"))
+		return "", nil
+	} else if err != nil {
+		r.log.Error(ctx, fmt.Sprintf("Failed to retrieve access token ", err))
+		return "", fmt.Errorf("failed to retrieve access token: %w", err)
+	}
+	return token, nil
+}
+
+// DeleteKey removes a specific key from Redis.
+func (r *redisCache) DeleteKey(ctx context.Context, key string) error {
+	// Delete the specified key from Redis
+	err := r.client.Del(ctx, key).Err()
+	if err != nil {
+		r.log.Error(ctx, fmt.Sprintf("Failed to delete key %s from Redis: %v", key, err))
+		return fmt.Errorf("failed to delete key: %w", err)
+	}
+
+	// Log the successful deletion for tracking
+	r.log.Info(ctx, fmt.Sprintf("Successfully deleted key %s from Redis", key))
 	return nil
 }
 

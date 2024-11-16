@@ -7,8 +7,8 @@ import (
 
 // IJWTService defines the methods that our JWT service should implement.
 type IJWTService interface {
-	GenerateAccessToken(userID string) (string, error)
-	GenerateRefreshToken(userID string) (string, error)
+	GenerateAccessToken(userID int64) (string, error)
+	GenerateRefreshToken(userID int64) (string, error)
 }
 
 // JWTService is the concrete implementation of the IJWTService interface.
@@ -22,7 +22,7 @@ func NewJWTService(secretKey string) IJWTService {
 }
 
 // GenerateAccessToken generates an access token for the user.
-func (s *JWTService) GenerateAccessToken(userID string) (string, error) {
+func (s *JWTService) GenerateAccessToken(userID int64) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,                               // Subject is the user ID
 		"exp":     time.Now().Add(time.Hour * 1).Unix(), // Expiry time set to 1 hour
@@ -32,7 +32,7 @@ func (s *JWTService) GenerateAccessToken(userID string) (string, error) {
 }
 
 // GenerateRefreshToken generates a refresh token for the user.
-func (s *JWTService) GenerateRefreshToken(userID string) (string, error) {
+func (s *JWTService) GenerateRefreshToken(userID int64) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,                                    // Subject is the user ID
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(), // Expiry time set to 7 days

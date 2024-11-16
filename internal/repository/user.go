@@ -17,8 +17,8 @@ type IUser interface {
 	FindUserByUserNameOrEmail(ctx context.Context, req *model.UserLoginRequest) (*model.User, error)
 	SaveAccessToken(ctx context.Context, accessToken *model.AccessToken) error
 	SaveRefreshToken(ctx context.Context, refreshToken *model.RefreshToken) error
-	RemoveAccessToken(ctx context.Context, userID int64) error
-	RemoveRefreshToken(ctx context.Context, userID int64) error
+	RemoveAccessToken(ctx context.Context, userID int64) ([]*model.AccessToken, error)
+	RemoveRefreshToken(ctx context.Context, userID int64) ([]*model.RefreshToken, error)
 }
 
 type InitUserRepository struct {
@@ -74,32 +74,38 @@ func (u *UserReceiver) SaveRefreshToken(ctx context.Context, refreshToken *model
 }
 
 // RemoveAccessToken removes the access token from the database.
-func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID int64) error {
+func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID int64) ([]*model.AccessToken, error) {
+	accessTokens := []*model.AccessToken{}
 	_, err := u.db.NewUpdate().Model(&model.AccessToken{}).
 		Set("deleted_at = ?", time.Now().UTC()).
 		Where("user_id = ?", userID).
-		Exec(ctx)
+		Returning("*").
+		Exec(ctx, &accessTokens)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove access token for user %s: %v", userID, err))
-		return err
+		return nil, err
 	}
-	return nil
+	return accessTokens, nil
 }
 
 // RemoveRefreshToken removes the refresh token from the database.
-func (u *UserReceiver) RemoveRefreshToken(ctx context.Context, userID int64) error {
+func (u *UserReceiver) RemoveRefreshToken(ctx context.Context, userID int64) ([]*model.RefreshToken, error) {
+	refreshTokens := []*model.RefreshToken{}
+
 	_, err := u.db.NewUpdate().Model(&model.RefreshToken{}).
 		Set("deleted_at = ?", time.Now().UTC()).
-		Where("user_id = ?", userID).Exec(ctx)
+		Where("user_id = ?", userID).
+		Returning("*").
+		Exec(ctx, &refreshTokens)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove refresh token for user %s: %v", userID, err))
-		return err
+		return nil, err
 	}
-	return nil
+	return refreshTokens, nil
 }
 
 // GenerateAccessToken creates and returns a new JWT access token for the user.
-func (u *UserReceiver) GenerateAccessToken(userID string) (*model.AccessToken, error) {
+func (u *UserReceiver) GenerateAccessToken(userID int64) (*model.AccessToken, error) {
 	secretKey := "yourSecretKey"
 	expiry := time.Now().Add(15 * time.Minute)
 
@@ -124,7 +130,7 @@ func (u *UserReceiver) GenerateAccessToken(userID string) (*model.AccessToken, e
 }
 
 // GenerateRefreshToken creates and returns a new refresh token for the user.
-func (u *UserReceiver) GenerateRefreshToken(userID string) (*model.RefreshToken, error) {
+func (u *UserReceiver) GenerateRefreshToken(userID int64) (*model.RefreshToken, error) {
 	expiry := time.Now().Add(30 * 24 * time.Hour)
 
 	refreshTokenString := uuid.New().String()

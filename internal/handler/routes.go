@@ -22,12 +22,6 @@ type ServiceRegistry struct {
 func Register(serviceRegistry *ServiceRegistry) {
 	serviceRegistry.EchoEngine.Validator = &CustomValidator{validator: validator.New()}
 
-	// Initialize JWT middleware
-	jwtMiddleware := middleware.NewJWTMiddleware(middleware.JWTConfig{
-		SecretKey: "123", // Replace this with your actual secret key
-		DB:        serviceRegistry.DBInstance,
-	}, serviceRegistry.Log)
-
 	api := serviceRegistry.EchoEngine.Group("/api/v1")
 
 	// Health check
@@ -38,6 +32,13 @@ func Register(serviceRegistry *ServiceRegistry) {
 	redisRepository := repository.NewRedisCache(&repository.InitRedisCache{
 		Client: serviceRegistry.RedisClient, Log: serviceRegistry.Log,
 	})
+
+	// Initialize JWT middleware
+	jwtMiddleware := middleware.NewJWTMiddleware(middleware.JWTConfig{
+		SecretKey:  "123", // Replace this with your actual secret key
+		DB:         serviceRegistry.DBInstance,
+		RedisCache: redisRepository,
+	}, serviceRegistry.Log)
 
 	orderRepository := repository.NewOrder(&repository.InitOrderRepository{
 		Db: serviceRegistry.DBInstance, Log: serviceRegistry.Log,
