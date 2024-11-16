@@ -50,7 +50,7 @@ func (u *UserReceiver) FindUserByUserNameOrEmail(ctx context.Context, req *model
 
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Error finding user by username %s or email %s: %v", req.Username, req.Email, err))
-		return nil, fmt.Errorf("user not found")
+		return nil, err
 	}
 	return user, nil
 }
@@ -59,7 +59,7 @@ func (u *UserReceiver) FindUserByUserNameOrEmail(ctx context.Context, req *model
 func (u *UserReceiver) SaveAccessToken(ctx context.Context, accessToken *model.AccessToken) error {
 	_, err := u.db.NewInsert().Model(accessToken).Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to save access token: %v", err)
+		return err
 	}
 	return nil
 }
@@ -68,7 +68,7 @@ func (u *UserReceiver) SaveAccessToken(ctx context.Context, accessToken *model.A
 func (u *UserReceiver) SaveRefreshToken(ctx context.Context, refreshToken *model.RefreshToken) error {
 	_, err := u.db.NewInsert().Model(refreshToken).Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to save refresh token: %v", err)
+		return err
 	}
 	return nil
 }
@@ -81,7 +81,7 @@ func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID int64) erro
 		Exec(ctx)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove access token for user %s: %v", userID, err))
-		return fmt.Errorf("failed to remove access token")
+		return err
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (u *UserReceiver) RemoveRefreshToken(ctx context.Context, userID int64) err
 		Where("user_id = ?", userID).Exec(ctx)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove refresh token for user %s: %v", userID, err))
-		return fmt.Errorf("failed to remove refresh token")
+		return err
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func (u *UserReceiver) GenerateAccessToken(userID string) (*model.AccessToken, e
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %v", err)
+		return nil, err
 	}
 
 	return &model.AccessToken{
@@ -141,7 +141,7 @@ func (u *UserReceiver) GenerateRefreshToken(userID string) (*model.RefreshToken,
 func ComparePassword(storedHash, password string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password))
 	if err != nil {
-		return fmt.Errorf("password does not match")
+		return err
 	}
 	return nil
 }

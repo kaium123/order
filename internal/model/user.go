@@ -42,11 +42,12 @@ type UserLoginRequest struct {
 	Email    string `json:"email"`
 }
 
-// UserLoginResponse represents the response with tokens after a successful login.
+// UserLoginResponse represents the utils with tokens after a successful login.
 type UserLoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	UserID       string `json:"user_id"`
+	TokenType    string `json:"token_type"`
+	ExpireIn     int64  `json:"expire_in"`
 }
 
 var ErrInvalidCredentials = errors.New("invalid credentials")

@@ -101,7 +101,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 	lastPage := (total + req.Limit - 1) / req.Limit
 	totalInPage := len(orders)
 
-	// Step 4: Prepare the response
+	// Step 4: Prepare the utils
 	response := &model.FindAllResponse{
 		Orders:      orders,
 		Total:       total,
@@ -117,9 +117,10 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 func (o *OrderReceiver) CancelOrder(ctx context.Context, req *model.OrderCancelRequest) error {
 	_, err := o.db.NewUpdate().Model((*model.Order)(nil)).
 		Set("deleted_at = ?", time.Now().UTC()).
-		Where("order_consignment_id = ? amd user_id = ?", req.ConsignmentID, req.UserId).
+		Where("order_consignment_id = ? and user_id = ?", req.ConsignmentID, req.UserId).
 		Exec(ctx)
 	if err != nil {
+		o.log.Error(ctx, err.Error())
 		return err
 	}
 
