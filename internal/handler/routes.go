@@ -5,6 +5,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/kaium123/order/internal/db"
 	"github.com/kaium123/order/internal/log"
+	"github.com/kaium123/order/internal/middleware"
 	"github.com/kaium123/order/internal/repository"
 	"github.com/kaium123/order/internal/service"
 	"github.com/labstack/echo/v4"
@@ -21,33 +22,56 @@ type ServiceRegistry struct {
 func Register(serviceRegistry *ServiceRegistry) {
 	serviceRegistry.EchoEngine.Validator = &CustomValidator{validator: validator.New()}
 
+	// Initialize JWT middleware
+	jwtMiddleware := middleware.NewJWTMiddleware(middleware.JWTConfig{
+		SecretKey: "123", // Replace this with your actual secret key
+	}, serviceRegistry.Log)
+
 	api := serviceRegistry.EchoEngine.Group("/api/v1")
 
 	// Health check
 	healthHandler := NewHealth()
 	api.GET("/healthz", healthHandler.Healthz)
 
-	// Inject Todo Dependency
+	// Inject Order Dependency
 	redisRepository := repository.NewRedisCache(&repository.InitRedisCache{
 		Client: serviceRegistry.RedisClient, Log: serviceRegistry.Log,
 	})
-	repository := repository.NewTodo(&repository.InitTodoRepository{
+
+	orderRepository := repository.NewOrder(&repository.InitOrderRepository{
 		Db: serviceRegistry.DBInstance, Log: serviceRegistry.Log,
 	})
-	service := service.NewTodo(&service.InitTodoService{
-		Log: serviceRegistry.Log, TodoRepository: repository, RedisCache: redisRepository,
+	orderService := service.NewOrder(&service.InitOrderService{
+		Log: serviceRegistry.Log, OrderRepository: orderRepository, RedisCache: redisRepository,
 	})
-	todoHandler := NewTodo(&InitTodoHandler{
-		Service: service, Log: serviceRegistry.Log,
+	orderHandler := NewOrder(&InitOrderHandler{
+		Service: orderService, Log: serviceRegistry.Log,
 	})
 
-	// Add routes for todo
-	todo := api.Group("/todos")
+	// Inject Auth Dependency
+	userRepository := repository.NewUser(&repository.InitUserRepository{
+		Db: serviceRegistry.DBInstance, Log: serviceRegistry.Log,
+	})
+	jwtService := service.NewJWTService("123")
+	authService := service.NewUser(&service.InitUserService{
+		Log: serviceRegistry.Log, UserRepository: userRepository,
+		RedisCache: redisRepository,
+		JWTService: jwtService,
+	})
+	authHandler := NewAuth(&InitAuthHandler{
+		Service: authService, Log: serviceRegistry.Log,
+	})
+
+	// Add routes for order
+	order := api.Group("/orders", jwtMiddleware)
 	{
-		todo.POST("", todoHandler.Create)
-		todo.GET("", todoHandler.FindAll)
-		todo.GET("/:id", todoHandler.Find)
-		todo.PUT("/:id", todoHandler.Update)
-		todo.DELETE("/:id", todoHandler.Delete)
+		order.POST("", orderHandler.CreateOrder)
+		order.GET("/all", orderHandler.FindAllOrders)
+		order.PUT("/:CONSIGNMENT_ID/cancel", orderHandler.CancelOrder)
 	}
+
+	// Add routes for auth (login and logout)
+	api.POST("/login", authHandler.Login)
+	api.POST("/logout", authHandler.Logout)
+
 }

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kaium123/order/internal/config"
+	"github.com/kaium123/order/internal/db"
 	"github.com/kaium123/order/internal/log"
 	"github.com/kaium123/order/internal/server"
+	"github.com/kaium123/order/sql"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -16,26 +18,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewServerCmd returns a new `server` command to be used as a sub-command to root
+// serve returns a new `serve` command to be used as a sub-command to root
 func serve() *cobra.Command {
-	serverCmd := cobra.Command{
-		Use:     "serve",
-		Short:   "Print version information",
-		Example: `  # Print the full version of client and server to stdout todo-cli server `,
+	serveCmd := cobra.Command{
+		Use:   "serve",
+		Short: "Print version information",
 		Run: func(_ *cobra.Command, _ []string) {
-			var servers []server.Server
-
-			conf := config.New().Load()
-
-			logger := log.New()
-			ctx := context.Background()
+			var (
+				servers []server.Server
+				conf    = config.New().Load()
+				logger  = log.New()
+				ctx     = context.Background()
+			)
 
 			initNewAPI := &server.InitNewAPI{
-				TodoAPIServerOpts: server.TodoAPIServerOpts{
+				OrderAPIServerOpts: server.OrderAPIServerOpts{
 					ListenPort: conf.APIServer.Port,
 					Config:     *conf,
 				},
 				Log: logger,
+			}
+
+			// migrations
+			migrateDirection, migrateOnly := conf.MigrationDirectionFlag()
+			migrateDB, err := db.SQLFromUrl(conf.DB.URL)
+			if err != nil {
+				panic(err)
+			}
+
+			migrations := sql.GetMigrations()
+			err = db.MigrateFromFS(migrateDB, migrateDirection, "orders", migrations)
+			if err != nil {
+				panic(err)
+			}
+			_ = migrateDB.Close()
+
+			if migrateOnly {
+				logger.Info(ctx, "Migration complete, exiting")
+				return
 			}
 
 			apiServer, err := server.NewAPI(ctx, initNewAPI)
@@ -83,5 +103,5 @@ func serve() *cobra.Command {
 			logger.Info(ctx, "server shutdown gracefully")
 		},
 	}
-	return &serverCmd
+	return &serveCmd
 }

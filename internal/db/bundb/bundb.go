@@ -35,7 +35,7 @@ func NewConfig() (conf *Config) {
 	return
 }
 
-// Options for underlying DB ORM by this configurations.
+// Options for underlying DB ORM by these configurations.
 func (c *Config) options() (opts *pgdriver.Option, err error) {
 	// cfg := pgdriver.Config{
 	// 	Network:     "tcp",
@@ -44,7 +44,7 @@ func (c *Config) options() (opts *pgdriver.Option, err error) {
 	// 	DialTimeout: c.DialTimeout,
 	// 	ReadTimeout: c.ReadTimeout,
 	// }
-
+	//
 	// if opts, err = pg.ParseURL(c.URL); err != nil {
 	// 	return
 	// }
@@ -68,7 +68,7 @@ type DB struct {
 
 // New DB with given configurations and log.
 func New(conf *Config) (db *DB, err error) {
-
+	// Create the connection with the provided configurations.
 	pgconn := pgdriver.NewConnector(
 		pgdriver.WithNetwork("tcp"),
 		pgdriver.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
@@ -79,15 +79,29 @@ func New(conf *Config) (db *DB, err error) {
 		pgdriver.WithWriteTimeout(5*time.Second),
 	)
 
+	// Create the underlying SQL database connection.
 	sqlDB := sql.OpenDB(pgconn)
 
-	db = &DB{}
-	db.DB = bun.NewDB(sqlDB, pgdialect.New())
-	err = db.Ping(context.Background())
-	if err != nil {
-		return nil, err
+	// Ping the database to ensure the connection is successful.
+	if err = sqlDB.PingContext(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Set connection pool limits
+	sqlDB.SetMaxIdleConns(conf.PoolSize)
+	sqlDB.SetMaxOpenConns(conf.PoolSize)
+	sqlDB.SetConnMaxLifetime(conf.IdleTimeout)
+
+	// Initialize the Bun DB instance.
+	db = &DB{}
+	db.DB = bun.NewDB(sqlDB, pgdialect.New())
+
+	// Verify Bun DB connection by pinging.
+	if err = db.Ping(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ping bun DB: %w", err)
+	}
+
+	// Add query hooks for logging queries.
 	db.DB.AddQueryHook(db)
 	return
 }
@@ -97,17 +111,13 @@ func (db *DB) Ping(ctx context.Context) error {
 	return db.DB.Ping()
 }
 
-// BeforeQuery hook.
+// BeforeQuery hook (no-op for now).
 func (db *DB) BeforeQuery(ctx context.Context, qe *bun.QueryEvent) context.Context {
-
-	return ctx // no op.
+	// Add any pre-query actions here if needed.
+	return ctx
 }
 
-// AfterQuery hook.
+// AfterQuery hook (log the query operation and any errors).
 func (db *DB) AfterQuery(ctx context.Context, qe *bun.QueryEvent) {
-
-	fmt.Println(qe.Operation(), qe.Query)
-	// db.log.Debug(ctx, "query", zap.Duration("after", time.Since(qe.StartTime)),
-	// 	zap.String("sql", string(fq)))
-	return
+	fmt.Println(qe.Query)
 }

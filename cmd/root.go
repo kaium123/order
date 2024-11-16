@@ -9,7 +9,6 @@ import (
 func main() {
 	var rootCmd = &cobra.Command{}
 	rootCmd.AddCommand(serve())
-	rootCmd.AddCommand(migrate())
 
 	if err := rootCmd.Execute(); err != nil {
 		l.Println(err)

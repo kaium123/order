@@ -1,14 +1,19 @@
-ui:
-  url: http://localhost:3000
-swaggerServer:
+swagger_server:
   enable: true
-sqLite:
-  dbFilename: "tmp/gorm.db"
+  port: 3001
+
+api_server:
+  enable: true
+  port: 8601
+
+# Redis configurations
 redis:
   addr: "localhost:6379"
   password: ""
   db: 5
-# database configurations
-db:
-  url: 'postgresql://root:123456@localhost:54321/bank?sslmode=disable'
 
+# Database configurations
+db:
+  url: 'postgresql://root:123456@localhost:54321/orders?sslmode=disable'
+  max_connections: 10
+  connection_timeout: 30s

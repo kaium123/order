@@ -12,46 +12,45 @@ import (
 	"github.com/kaium123/order/internal/log"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-
-	"go.uber.org/zap"
 )
 
-// todoAPIServer is the API server for Todo
-type todoAPIServer struct {
+// orderAPIServer is the API server for Order
+type orderAPIServer struct {
 	port   int
 	engine *echo.Echo
 	log    *log.Logger
 	db     *db.DB
 }
 
-// TodoAPIServerOpts is the options for the TodoAPIServer
-type TodoAPIServerOpts struct {
+// OrderAPIServerOpts is the options for the OrderAPIServer
+type OrderAPIServerOpts struct {
 	ListenPort int
 	Config     config.Config
 }
 
 type InitNewAPI struct {
-	TodoAPIServerOpts TodoAPIServerOpts
-	Log               *log.Logger
+	OrderAPIServerOpts OrderAPIServerOpts
+	Log                *log.Logger
 }
 
-// NewAPI returns a new instance of the Todo API server
 func NewAPI(ctx context.Context, init *InitNewAPI) (Server, error) {
-
-	conf := config.New().Load()
-	logger := log.New()
-
-	fmt.Println(conf)
 	// database
-	dbInstance, err := db.New(conf.DB, logger)
+	dbInstance, err := db.New(init.OrderAPIServerOpts.Config.DB, init.Log)
 	if err != nil {
 		panic(err)
 	}
-	defer func(postgres *db.DB) {
-		_ = postgres.DB.Close()
-	}(dbInstance)
 
-	redisClient := cache.New(init.TodoAPIServerOpts.Config.Redis)
+	// Perform a ping to verify the database connection is working
+	err = dbInstance.Ping()
+	if err != nil {
+		init.Log.Error(ctx, fmt.Sprintf("Failed to ping the database: %v", err))
+		return nil, err
+	} else {
+		init.Log.Info(ctx, "Database ping successful")
+	}
+
+	// Initialize other components like Redis and Echo server
+	redisClient := cache.New(init.OrderAPIServerOpts.Config.Redis)
 
 	engine := echo.New()
 	engine.HideBanner = true
@@ -64,40 +63,42 @@ func NewAPI(ctx context.Context, init *InitNewAPI) (Server, error) {
 		Log:         init.Log,
 	})
 
-	allowOrigins := []string{init.TodoAPIServerOpts.Config.UI.URL}
-	if init.TodoAPIServerOpts.Config.SwaggerServer.Enable {
-		allowOrigins = append(allowOrigins, fmt.Sprintf("http://localhost:%d", init.TodoAPIServerOpts.Config.SwaggerServer.Port))
-	}
-	init.Log.Info(ctx, "CORS allowed origins: ", zap.Any("origins: ", allowOrigins))
 	engine.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: allowOrigins,
+		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
 	engine.Use(requestLogger())
 
-	s := &todoAPIServer{
-		port:   init.TodoAPIServerOpts.ListenPort,
+	s := &orderAPIServer{
+		port:   init.OrderAPIServerOpts.ListenPort,
 		engine: engine,
 		log:    init.Log,
 		db:     dbInstance,
 	}
+
+	// Closing the database connection when the server shuts down
+	go func() {
+		<-ctx.Done()
+		dbInstance.DB.Close()
+	}()
+
 	return s, nil
 }
 
-func (s *todoAPIServer) Name() string {
-	return "todoAPIServer"
+func (s *orderAPIServer) Name() string {
+	return "orderAPIServer"
 }
 
-// Run starts the Todo API server
-func (s *todoAPIServer) Run() error {
+// Run starts the Order API server
+func (s *orderAPIServer) Run() error {
 	s.log.Info(context.Background(), fmt.Sprintf("%s %s serving on port %d", s.Name(), common.GetVersion(), s.port))
 	return s.engine.Start(fmt.Sprintf(":%d", s.port))
 }
 
-// Shutdown stops the Todo API server
-func (s *todoAPIServer) Shutdown(ctx context.Context) error {
+// Shutdown stops the Order API server
+func (s *orderAPIServer) Shutdown(ctx context.Context) error {
 	s.log.Info(context.Background(), fmt.Sprintf("shuting down %s %s serving on port %d", s.Name(), common.GetVersion(), s.port))
 	return s.engine.Shutdown(ctx)
 }
