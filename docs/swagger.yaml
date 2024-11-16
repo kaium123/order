@@ -10,12 +10,12 @@ definitions:
   handler.ResponseData:
     properties:
       data:
-        description: Data is the response data.
+        description: Data is the utils data.
     type: object
   handler.ResponseError:
     properties:
       errors:
-        description: Errors is the response errors.
+        description: Errors is the utils errors.
         items:
           $ref: '#/definitions/handler.Error'
         type: array

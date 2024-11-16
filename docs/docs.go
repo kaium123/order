@@ -310,7 +310,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
-                    "description": "Data is the response data."
+                    "description": "Data is the utils data."
                 }
             }
         },
@@ -318,7 +318,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "errors": {
-                    "description": "Errors is the response errors.",
+                    "description": "Errors is the utils errors.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/handler.Error"

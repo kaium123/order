@@ -46,34 +46,35 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 	// Validate user credentials
 	user, err := u.UserRepository.FindUserByUserNameOrEmail(ctx, reqLogin)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %v", err)
+		return nil, err
 	}
 
 	// Compare the provided password with the stored hash
 	if !CheckPasswordHash(reqLogin.Password, user.PasswordHash) {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, err
 	}
 
 	// Generate JWT tokens (access and refresh tokens)
 	accessToken, err := u.jwtService.GenerateAccessToken(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %v", err)
+		return nil, err
 	}
 
 	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %v", err)
+		return nil, err
 	}
 
 	// Save tokens to the database
+	expirey := time.Now().Add(time.Hour * 1)
 	err = u.UserRepository.SaveAccessToken(ctx, &model.AccessToken{
 		Token:     accessToken,
 		UserID:    user.ID,
 		CreatedAt: time.Now(),
-		Expiry:    time.Now().Add(time.Hour * 1), // Access token expires in 1 hour
+		Expiry:    expirey, // Access token expires in 1 hour
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to save access token: %v", err)
+		return nil, err
 	}
 
 	err = u.UserRepository.SaveRefreshToken(ctx, &model.RefreshToken{
@@ -83,14 +84,15 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		Expiry:    time.Now().Add(time.Hour * 24 * 7), // Refresh token expires in 7 days
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to save refresh token: %v", err)
+		return nil, err
 	}
 
-	// Return the response with tokens
+	// Return the utils with tokens
 	return &model.UserLoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		UserID:       user.ID,
+		TokenType:    "Bearer",
+		ExpireIn:     expirey.Unix(),
 	}, nil
 }
 

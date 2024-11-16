@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/kaium123/order/internal/utils"
 	"net/http"
 	"time"
 
@@ -25,5 +26,5 @@ func NewHealth() HealthHandler {
 // @Success	200	{object}	ResponseData{data=time.Time}
 // @Router		/healthz [get]
 func (t *healthHandler) Healthz(c echo.Context) error {
-	return c.JSON(http.StatusOK, ResponseData{Data: time.Now()})
+	return c.JSON(http.StatusOK, utils.ResponseData{Data: time.Now()})
 }

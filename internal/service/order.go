@@ -39,24 +39,24 @@ func NewOrder(initOrderService *InitOrderService) IOrder {
 		redisCache:      initOrderService.RedisCache,
 	}
 }
-func (t *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) (*model.CreateOrderResponse, error) {
+func (o *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) (*model.CreateOrderResponse, error) {
 	// Generate consignment ID
 	consignmentID := GenerateConsignmentID("CN", 6)
 	reqOrder.OrderConsignmentID = consignmentID
 
 	// Create the order in the repository (DB)
-	order, err := t.OrderRepository.CreateOrder(ctx, reqOrder)
+	order, err := o.OrderRepository.CreateOrder(ctx, reqOrder)
 	if err != nil {
 		return nil, err
 	}
 
 	// Cache the order in Redis
-	err = t.redisCache.CacheOrder(ctx, *order)
+	err = o.redisCache.CacheOrder(ctx, *order)
 	if err != nil {
-		t.log.Error(ctx, fmt.Sprintf("Failed to cache order with ID %s: %v", order.OrderConsignmentID, err))
+		o.log.Error(ctx, fmt.Sprintf("Failed to cache order with ID %s: %v", order.OrderConsignmentID, err))
 	}
 
-	// Return the response
+	// Return the utils
 	return &model.CreateOrderResponse{
 		ConsignmentID:   order.OrderConsignmentID,
 		MerchantOrderID: order.MerchantOrderID,
@@ -65,21 +65,22 @@ func (t *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) 
 	}, nil
 }
 
-func (t OrderReceiver) CancelOrder(ctx context.Context, reqParams *model.OrderCancelRequest) error {
-	err := t.OrderRepository.CancelOrder(ctx, reqParams)
+func (o *OrderReceiver) CancelOrder(ctx context.Context, reqParams *model.OrderCancelRequest) error {
+	err := o.OrderRepository.CancelOrder(ctx, reqParams)
 	if err != nil {
+		o.log.Error(ctx, err.Error())
 		return err
 	}
 
-	err = t.redisCache.CancelOrder(ctx, reqParams)
+	err = o.redisCache.CancelOrder(ctx, reqParams)
 	if err != nil {
-		t.log.Error(ctx, err.Error())
+		o.log.Error(ctx, err.Error())
 	}
 	return nil
 }
 
-func (t OrderReceiver) FindAllOrders(ctx context.Context, reqParams *model.FindAllRequest) (*model.FindAllResponse, error) {
-	orders, err := t.OrderRepository.FindAllOrders(ctx, reqParams)
+func (o *OrderReceiver) FindAllOrders(ctx context.Context, reqParams *model.FindAllRequest) (*model.FindAllResponse, error) {
+	orders, err := o.OrderRepository.FindAllOrders(ctx, reqParams)
 	if err != nil {
 		return nil, err
 	}
