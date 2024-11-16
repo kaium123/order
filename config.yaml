@@ -1,0 +1,14 @@
+ui:
+  url: http://localhost:3000
+swaggerServer:
+  enable: true
+sqLite:
+  dbFilename: "tmp/gorm.db"
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 5
+# database configurations
+db:
+  url: 'postgresql://root:123456@localhost:54321/bank?sslmode=disable'
+

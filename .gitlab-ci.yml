@@ -1,0 +1,134 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' || $CI_COMMIT_BRANCH == 'main'
+
+stages:          # List of stages for jobs, and their order of execution
+  - build_deploy
+  - build
+  - deploy
+  - deploy_prod
+
+
+before_script:
+  - export SOURCE_BRANCH=$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+  - SOURCE_BRANCH=${SOURCE_BRANCH:-$CI_DEFAULT_BRANCH}
+  - eval $(ssh-agent -s)
+  - export SSH_DECODE_PRIVATE_KEY="$(echo $SSH_PRIVATE_KEY | base64 -d)"
+  - ssh-add <(echo "$SSH_DECODE_PRIVATE_KEY")
+  - echo -e "Host gitlab.techetronventures.com\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - git clone git@gitlab.techetronventures.com:core/backend.git
+  - git clone git@gitlab.techetronventures.com:core/portfolio.git
+  - git clone -b $SOURCE_BRANCH git@gitlab.techetronventures.com:core/me.git
+
+
+after_script:
+  - >
+    if [ "$CI_JOB_STATUS" == "success" ]; then
+      CI_JOB_STATUS="passed  :gopher:"
+    else
+      CI_JOB_STATUS="failed  :x:"
+    fi
+  - >
+    curl -i -X POST -H "application/json" $SLACK_HOOK -d "{\"text\": \" $SERVICE pipeline's $CI_JOB_NAME job has been $CI_JOB_STATUS$JOB_RETURN\n$CI_PIPELINE_URL\"}"
+
+Start Build & Deploy:
+  stage: build_deploy
+  image: gcr.io/stock-x-342909/docker-golang
+
+  script:
+    - echo "Start build & deploy for $SOURCE_BRANCH"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: false
+
+Build:       # This job runs in the build stage, which runs first.
+  stage: build
+  image: gcr.io/stock-x-342909/docker-golang
+  services:
+    - docker:19.03.12-dind
+  variables:
+    # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    SERVICE_IMAGE: gcr.io/$GCP_PROJECT_NAME/$SERVICE
+
+  script:
+    - echo "Compiling & build the code for $SOURCE_BRANCH"
+    - git config --global user.email "abu.hanifa@techetronventures.com"
+    - git config --global url.git@gitlab.techetronventures.com:core.insteadOf https://gitlab.techetronventures.com/core
+    - echo $SERVICE_ACCOUNT_KEY > key.json
+    - docker login -u _json_key --password-stdin https://gcr.io < key.json
+    - go version
+    # tag update
+    - cd $SERVICE
+    - export IMAGE_TAG=$(git rev-parse --short HEAD)
+    - echo "IMAGE_TAG- $IMAGE_TAG"
+    - cd ../backend
+    - source ~/.profile
+    #protoc dependencies
+    - go get github.com/gogo/googleapis@v1.4.1
+    - go get github.com/grpc-ecosystem/grpc-gateway@latest
+    #docker build
+    - make build-all service=$SERVICE
+    - make docker-build service=$SERVICE
+    - ./build-envoy.sh $SERVICE-$IMAGE_TAG
+    - echo "Compile & build complete."
+
+
+Deploy-Stage:      # This job runs in the deploy stage.
+  stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
+  image: gcr.io/stock-x-342909/gcloud
+  environment: stage
+
+  script:
+    - cd $SERVICE
+    - export IMAGE_TAG=$(git rev-parse --short HEAD)
+    - echo "IMAGE_TAG- $IMAGE_TAG"
+    - curl -X PUT --data-binary @config/config.stage.yaml --location http://consul-stage.trek.com.bd/v1/kv/$SERVICE
+    - cd ..
+    - echo "$SERVICE_ACCOUNT_KEY" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud config set project $GCP_PROJECT_NAME
+    - gcloud config set container/cluster $GKE_CLUSTER_NAME
+    - gcloud config set compute/zone asia-east1-a
+    - gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone asia-east1-a --project $GCP_PROJECT_NAME
+    - kubectl version --short
+    - cd backend
+    - cd deployment/$SERVICE
+    - envsubst  <deploy.yaml | kubectl apply -f -
+    - kubectl rollout status deploy/$SERVICE -n $SERVICE --timeout=60s
+    - envsubst  <deploy-account-creation.yaml | kubectl apply -f -
+    - kubectl rollout status deploy/account-listener -n $SERVICE --timeout=60s
+
+Deploy-Prod:      # This job runs in the deploy stage.
+  stage: deploy_prod  # It only runs when *both* jobs in the test stage complete successfully.
+  image: gcr.io/stock-x-342909/gcloud
+  environment: production
+  when: manual
+  only:
+    - main
+  script:
+    - cd $SERVICE
+    - export IMAGE_TAG=$(git rev-parse --short HEAD)
+    - echo "IMAGE_TAG - $IMAGE_TAG"
+    - curl -X PUT --data-binary @config/config.prod.yaml --location http://consul-prod.trek.com.bd/v1/kv/$SERVICE
+    - cd ..
+    - echo "$SERVICE_ACCOUNT_KEY" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud config set project $GCP_PROJECT_NAME
+    - gcloud config set container/cluster $GKE_CLUSTER_PROD
+    - gcloud config set compute/zone asia-east1-a
+    - gcloud container clusters get-credentials $GKE_CLUSTER_PROD --zone asia-east1-a --project $GCP_PROJECT_NAME
+    - kubectl version --short
+    - cd backend/deployment/$SERVICE
+    - envsubst  <deploy.yaml | kubectl apply -f -
+    - kubectl rollout status deploy/$SERVICE -n $SERVICE --timeout=60s
+    - envsubst  <deploy-account-creation.yaml | kubectl apply -f -
+    - kubectl rollout status deploy/account-listener -n $SERVICE --timeout=60s
+
+
+
+
+
