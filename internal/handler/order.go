@@ -39,14 +39,22 @@ func NewOrder(initOrderHandler *InitOrderHandler) OrderHandler {
 
 func (t *orderHandler) CreateOrder(c echo.Context) error {
 	ctx := c.Request().Context()
-	var req model.Order
 	var responseErr ResponseError
+	var req model.Order
+
+	// Retrieve the user_id from the context
+	userId, err := GetUserId(c)
+	if err != nil {
+		t.log.Error(ctx, err.Error())
+		return c.JSON(responseErr.GetErrorResponse(http.StatusBadRequest, err))
+	}
 
 	if err := t.MustBind(c, &req); err != nil {
 		t.log.Error(ctx, err.Error())
 		return c.JSON(responseErr.GetErrorResponse(http.StatusBadRequest, err))
 	}
 
+	req.UserID = userId
 	Order, err := t.service.CreateOrder(ctx, &req)
 	if err != nil {
 		t.log.Error(ctx, err.Error())
@@ -60,11 +68,18 @@ func (t *orderHandler) CancelOrder(c echo.Context) error {
 	ctx := c.Request().Context()
 	var req model.OrderCancelRequest
 	var responseErr ResponseError
+	// Retrieve the user_id from the context
+	userId, err := GetUserId(c)
+	if err != nil {
+		t.log.Error(ctx, err.Error())
+		return c.JSON(responseErr.GetErrorResponse(http.StatusBadRequest, err))
+	}
 
 	// Get consignmentId directly from query parameter
 	consignmentId := c.Param("CONSIGNMENT_ID")
 	fmt.Println(consignmentId)
 	req.ConsignmentID = consignmentId
+	req.UserId = userId
 
 	if err := t.MustBind(c, &req); err != nil {
 		t.log.Error(ctx, err.Error())
@@ -85,6 +100,11 @@ func (t *orderHandler) CancelOrder(c echo.Context) error {
 func (t *orderHandler) FindAllOrders(c echo.Context) error {
 	ctx := c.Request().Context()
 	var responseErr ResponseError
+	userId, err := GetUserId(c)
+	if err != nil {
+		t.log.Error(ctx, err.Error())
+		return c.JSON(responseErr.GetErrorResponse(http.StatusBadRequest, err))
+	}
 
 	// Retrieve query parameters for 'task' and 'status'
 	transferStatus := c.QueryParam("transfer_status")
@@ -98,6 +118,7 @@ func (t *orderHandler) FindAllOrders(c echo.Context) error {
 		Archive:        archive,
 		Limit:          limit,
 		Offset:         (page - 1) * limit,
+		UserId:         userId,
 	}
 
 	// Call the service to find all tasks based on the request params
@@ -109,4 +130,18 @@ func (t *orderHandler) FindAllOrders(c echo.Context) error {
 
 	// Return the successful result
 	return c.JSON(http.StatusOK, ResponseData{Data: res})
+}
+
+func GetUserId(c echo.Context) (int64, error) {
+
+	userID, ok := c.Get("user_id").(string)
+	if !ok {
+		return 0, echo.NewHTTPError(http.StatusUnauthorized, "User ID not found in context")
+	}
+
+	intUserId, err := strconv.Atoi(userID)
+	if err != nil {
+		return 0, echo.NewHTTPError(http.StatusUnauthorized, "User ID not found in context")
+	}
+	return int64(intUserId), nil
 }

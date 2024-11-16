@@ -64,12 +64,14 @@ func (t *authHandler) Login(c echo.Context) error {
 func (t *authHandler) Logout(c echo.Context) error {
 	ctx := c.Request().Context()
 	var responseErr ResponseError
-
-	// Get userID from context or JWT token (assuming it is set in the middleware)
-	userID := c.Get("userID").(string)
+	userId, err := GetUserId(c)
+	if err != nil {
+		t.log.Error(ctx, err.Error())
+		return c.JSON(responseErr.GetErrorResponse(http.StatusBadRequest, err))
+	}
 
 	// Call the service to handle logout
-	err := t.service.Logout(ctx, userID)
+	err = t.service.Logout(ctx, userId)
 	if err != nil {
 		t.log.Error(ctx, err.Error())
 		return c.JSON(responseErr.GetErrorResponse(http.StatusInternalServerError, err))
