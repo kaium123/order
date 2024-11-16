@@ -14,7 +14,7 @@ import (
 // IUser is the service interface for user-related operations.
 type IAuth interface {
 	Login(ctx context.Context, reqLogin *model.UserLoginRequest) (*model.UserLoginResponse, error)
-	Logout(ctx context.Context, userID string) error
+	Logout(ctx context.Context, userID int64) error
 }
 
 type UserReceiver struct {
@@ -95,7 +95,7 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 }
 
 // Logout handles user logout and invalidates the tokens.
-func (u *UserReceiver) Logout(ctx context.Context, userID string) error {
+func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	// Remove the access and refresh tokens from the database and cache
 	err := u.UserRepository.RemoveAccessToken(ctx, userID)
 	if err != nil {

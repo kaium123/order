@@ -26,19 +26,18 @@ type Order struct {
 	ItemQuantity       int     `json:"item_quantity" bun:"item_quantity,notnull" validate:"required"`
 	ItemWeight         float64 `json:"item_weight" bun:"item_weight,notnull" validate:"required"`
 	AmountToCollect    float64 `json:"amount_to_collect" bun:"amount_to_collect,notnull" validate:"required"`
-	ItemDescription    string  `json:"item_description,omitempty" bun:"item_description"` // Optional field
-
-	// Newly added fields
-	OrderConsignmentID string `json:"order_consignment_id" bun:"order_consignment_id,notnull"` // Consignment ID
-	OrderTypeID        int    `json:"order_type_id" bun:"order_type_id"`                       // Order type ID
-	CodFee             int    `json:"cod_fee" bun:"cod_fee"`                                   // COD fee
-	PromoDiscount      int    `json:"promo_discount" bun:"promo_discount"`                     // Promo discount
-	Discount           int    `json:"discount" bun:"discount"`                                 // Discount
-	DeliveryFee        int    `json:"delivery_fee" bun:"delivery_fee"`                         // Delivery fee
-	OrderStatus        string `json:"order_status" bun:"order_status,notnull"`                 // Order status (Pending)
-	OrderType          string `json:"order_type" bun:"order_type,notnull"`                     // Order type (Delivery)
-	OrderAmount        int    `json:"order_amount" bun:"order_amount"`                         // Order amount
-	TotalFee           int    `json:"total_fee" bun:"total_fee"`                               // Total fee
+	ItemDescription    string  `json:"item_description,omitempty" bun:"item_description"`       // Optional field
+	OrderConsignmentID string  `json:"order_consignment_id" bun:"order_consignment_id,notnull"` // Consignment ID
+	OrderTypeID        int     `json:"order_type_id" bun:"order_type_id"`                       // Order type ID
+	CodFee             int     `json:"cod_fee" bun:"cod_fee"`                                   // COD fee
+	PromoDiscount      int     `json:"promo_discount" bun:"promo_discount"`                     // Promo discount
+	Discount           int     `json:"discount" bun:"discount"`                                 // Discount
+	DeliveryFee        int     `json:"delivery_fee" bun:"delivery_fee"`                         // Delivery fee
+	OrderStatus        string  `json:"order_status" bun:"order_status,notnull"`                 // Order status (Pending)
+	OrderType          string  `json:"order_type" bun:"order_type,notnull"`                     // Order type (Delivery)
+	OrderAmount        int     `json:"order_amount" bun:"order_amount"`                         // Order amount
+	TotalFee           int     `json:"total_fee" bun:"total_fee"`
+	UserID             int64   `json:"user_id" bun:"user_id"`
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" bun:"created_at,default:current_timestamp,notnull"`                             // Created timestamp
@@ -48,19 +47,23 @@ type Order struct {
 
 // DeleteRequest is the request parameter for deleting a todo
 type DeleteRequest struct {
-	ID int `param:"id" validate:"required"`
+	UserId int64 `param:"user_id" validate:"required"`
+	ID     int   `param:"id" validate:"required"`
 }
 
 // FindRequest is the request parameter for finding a todo
 type FindRequest struct {
-	ID int `param:"id" validate:"required"`
+	UserId int64 `param:"user_id" validate:"required"`
+	ID     int   `param:"id" validate:"required"`
 }
 
 type OrderCancelRequest struct {
+	UserId        int64 `param:"user_id" validate:"required"`
 	ConsignmentID string
 }
 
 type FindAllRequest struct {
+	UserId         int64 `param:"user_id" validate:"required"`
 	TransferStatus string
 	Archive        int
 	Limit          int

@@ -25,6 +25,7 @@ func Register(serviceRegistry *ServiceRegistry) {
 	// Initialize JWT middleware
 	jwtMiddleware := middleware.NewJWTMiddleware(middleware.JWTConfig{
 		SecretKey: "123", // Replace this with your actual secret key
+		DB:        serviceRegistry.DBInstance,
 	}, serviceRegistry.Log)
 
 	api := serviceRegistry.EchoEngine.Group("/api/v1")
@@ -72,6 +73,6 @@ func Register(serviceRegistry *ServiceRegistry) {
 
 	// Add routes for auth (login and logout)
 	api.POST("/login", authHandler.Login)
-	api.POST("/logout", authHandler.Logout)
+	api.POST("/logout", authHandler.Logout, jwtMiddleware)
 
 }

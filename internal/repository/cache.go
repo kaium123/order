@@ -13,7 +13,7 @@ import (
 type IRedisCache interface {
 	CacheOrder(ctx context.Context, order model.Order) error
 	CancelOrder(ctx context.Context, reqParams *model.OrderCancelRequest) error
-	InvalidateSession(ctx context.Context, userID string) error
+	InvalidateSession(ctx context.Context, userID int64) error
 }
 
 type InitRedisCache struct {
@@ -86,9 +86,9 @@ func (t *redisCache) CancelOrder(ctx context.Context, reqParams *model.OrderCanc
 }
 
 // InvalidateSession removes the session (such as JWT token) for the specified user.
-func (r *redisCache) InvalidateSession(ctx context.Context, userID string) error {
+func (r *redisCache) InvalidateSession(ctx context.Context, userID int64) error {
 	// Redis key for storing user session
-	sessionKey := fmt.Sprintf("session:%s", userID)
+	sessionKey := fmt.Sprintf("session:%d", userID)
 
 	// Remove the session key from Redis
 	err := r.client.Del(ctx, sessionKey).Err()

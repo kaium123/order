@@ -62,7 +62,8 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 	total := 0
 	countQuery := o.db.NewSelect().
 		Model((*model.Order)(nil)).
-		ColumnExpr("COUNT(*)")
+		ColumnExpr("COUNT(*)").
+		Where("user_id = ?", req.UserId)
 
 	if req.TransferStatus != "" {
 		countQuery.Where("transfer_status = ?", req.TransferStatus)
@@ -116,7 +117,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 func (o *OrderReceiver) CancelOrder(ctx context.Context, req *model.OrderCancelRequest) error {
 	_, err := o.db.NewUpdate().Model((*model.Order)(nil)).
 		Set("deleted_at = ?", time.Now().UTC()).
-		Where("order_consignment_id = ?", req.ConsignmentID).
+		Where("order_consignment_id = ? amd user_id = ?", req.ConsignmentID, req.UserId).
 		Exec(ctx)
 	if err != nil {
 		return err

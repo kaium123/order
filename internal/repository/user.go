@@ -17,8 +17,8 @@ type IUser interface {
 	FindUserByUserNameOrEmail(ctx context.Context, req *model.UserLoginRequest) (*model.User, error)
 	SaveAccessToken(ctx context.Context, accessToken *model.AccessToken) error
 	SaveRefreshToken(ctx context.Context, refreshToken *model.RefreshToken) error
-	RemoveAccessToken(ctx context.Context, userID string) error
-	RemoveRefreshToken(ctx context.Context, userID string) error
+	RemoveAccessToken(ctx context.Context, userID int64) error
+	RemoveRefreshToken(ctx context.Context, userID int64) error
 }
 
 type InitUserRepository struct {
@@ -74,8 +74,11 @@ func (u *UserReceiver) SaveRefreshToken(ctx context.Context, refreshToken *model
 }
 
 // RemoveAccessToken removes the access token from the database.
-func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID string) error {
-	_, err := u.db.NewDelete().Model(&model.AccessToken{}).Where("user_id = ?", userID).Exec(ctx)
+func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID int64) error {
+	_, err := u.db.NewUpdate().Model(&model.AccessToken{}).
+		Set("deleted_at = ?", time.Now().UTC()).
+		Where("user_id = ?", userID).
+		Exec(ctx)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove access token for user %s: %v", userID, err))
 		return fmt.Errorf("failed to remove access token")
@@ -84,8 +87,10 @@ func (u *UserReceiver) RemoveAccessToken(ctx context.Context, userID string) err
 }
 
 // RemoveRefreshToken removes the refresh token from the database.
-func (u *UserReceiver) RemoveRefreshToken(ctx context.Context, userID string) error {
-	_, err := u.db.NewDelete().Model(&model.RefreshToken{}).Where("user_id = ?", userID).Exec(ctx)
+func (u *UserReceiver) RemoveRefreshToken(ctx context.Context, userID int64) error {
+	_, err := u.db.NewUpdate().Model(&model.RefreshToken{}).
+		Set("deleted_at = ?", time.Now().UTC()).
+		Where("user_id = ?", userID).Exec(ctx)
 	if err != nil {
 		u.log.Error(ctx, fmt.Sprintf("Failed to remove refresh token for user %s: %v", userID, err))
 		return fmt.Errorf("failed to remove refresh token")

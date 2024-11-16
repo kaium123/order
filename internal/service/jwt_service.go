@@ -24,8 +24,8 @@ func NewJWTService(secretKey string) IJWTService {
 // GenerateAccessToken generates an access token for the user.
 func (s *JWTService) GenerateAccessToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
-		"sub": userID,                               // Subject is the user ID
-		"exp": time.Now().Add(time.Hour * 1).Unix(), // Expiry time set to 1 hour
+		"user_id": userID,                               // Subject is the user ID
+		"exp":     time.Now().Add(time.Hour * 1).Unix(), // Expiry time set to 1 hour
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.secretKey))
@@ -34,8 +34,8 @@ func (s *JWTService) GenerateAccessToken(userID string) (string, error) {
 // GenerateRefreshToken generates a refresh token for the user.
 func (s *JWTService) GenerateRefreshToken(userID string) (string, error) {
 	claims := jwt.MapClaims{
-		"sub": userID,                                    // Subject is the user ID
-		"exp": time.Now().Add(time.Hour * 24 * 7).Unix(), // Expiry time set to 7 days
+		"user_id": userID,                                    // Subject is the user ID
+		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(), // Expiry time set to 7 days
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.secretKey))

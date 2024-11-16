@@ -89,6 +89,7 @@ func serve() *cobra.Command {
 			}
 
 			logger.Info(ctx, "server started")
+
 			// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
 			<-ctx.Done()
 			logger.Info(ctx, "server shutting down")
