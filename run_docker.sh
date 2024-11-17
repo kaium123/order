@@ -5,9 +5,6 @@ echo "Starting server..."
 # Start dependent services in detached mode
 docker compose up consul db cache -d
 
-# Wait for services to initialize
-sleep 10
-
 export ORDERS_CONSUL_PATH="orders"
 export ORDERS_CONSUL_URL="localhost:8500"
 

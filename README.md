@@ -16,6 +16,8 @@ Run the following command to run the **database**, **Redis**, **Consul**, and th
 ./run_docker.sh
 ```
 
+### server port and configution stored in config.yaml and config.docker.yaml
+
 ### Orders API
 #### Features
 #### 1. **Login**
@@ -58,24 +60,24 @@ Run the following command to run the **database**, **Redis**, **Consul**, and th
    - **Description**:  Enables users to place new orders by providing necessary details.
    - **Input**:  
      ``` json
-     {
-        "store_id": 131172,
-        "merchant_order_id": "123",
-        "recipient_name": "kaium",
-        "recipient_phone": "01875113838",
-        "recipient_address": "banani, gulshan 2, dhaka, bangladesh",
-        "recipient_city": 1,
-        "recipient_zone": 1,
-        "recipient_area": 1,
-        "delivery_type": 2,  ///1 - pickup, 2 - delivery, 
-        "item_type": 2,  /// 1, document, 2 - parcel, 3 - other
-        "special_instruction": "please provide as soon as possible",
-        "item_quantity": 1,
-        "item_weight": 0.5,
-        "amount_to_collect": 12000,
-        "item_description": "this is description"
-     }
-     ```
+        {
+            "store_id": 131172,
+            "merchant_order_id": "123",
+            "recipient_name": "kaium",
+            "recipient_phone": "01875113838",
+            "recipient_address": "banani, gulshan 2, dhaka, bangladesh",
+            "recipient_city": 1,
+            "recipient_zone": 1,
+            "recipient_area": 1,
+            "delivery_type": 2,  ///1 - pickup, 2 - delivery, 
+            "item_type": 2,  /// 1, document, 2 - parcel, 3 - other
+            "special_instruction": "please provide as soon as possible",
+            "item_quantity": 1,
+            "item_weight": 0.5,
+            "amount_to_collect": 12000,
+            "item_description": "this is description"
+        }
+        ```
    - **Response**:  
      ```json
      {
@@ -105,7 +107,7 @@ Run the following command to run the **database**, **Redis**, **Consul**, and th
      ```
 
 #### 5. **Fetch Order List**
-   - **Endpoint**: `/api/v1/orders`
+   - **Endpoint**: `api/v1/orders/all`
    - **Description**:  Retrieve a list of all orders placed by the user. Supports filters.
    - **Input**:  
      - Filters: `?limit=1&page=2&transfer_status=1&archive=0`  
