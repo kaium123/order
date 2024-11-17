@@ -1,0 +1,19 @@
+swagger_server:
+  enable: true
+  port: 3001
+
+api_server:
+  enable: true
+  port: 8601
+
+# Redis configurations
+redis:
+  addr: "cache:6379"
+  password: ""
+  db: 5
+
+# Database configurations
+db:
+  url: 'postgresql://root:123456@db:5432/orders?sslmode=disable'
+  max_connections: 10
+  connection_timeout: 30s

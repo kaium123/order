@@ -10,13 +10,11 @@ import (
 
 // Order represents the structure for the order details.
 type Order struct {
-	// BaseModel includes fields like ID, CreatedAt, UpdatedAt, and DeletedAt.
-	bun.BaseModel `bun:"table:orders"` // Indicates the table name in the database
+	bun.BaseModel `bun:"table:orders"`
 
-	// The fields added in your SQL statement
-	ID                 int64       `json:"id" bun:"id,pk,autoincrement"`                        // Primary Key
-	StoreID            int64       `json:"store_id" bun:"store_id,notnull"`                     // Store ID
-	MerchantOrderID    string      `json:"merchant_order_id,omitempty" bun:"merchant_order_id"` // Optional field
+	ID                 int64       `json:"id" bun:"id,pk,autoincrement"`
+	StoreID            int64       `json:"store_id" bun:"store_id,notnull"`
+	MerchantOrderID    string      `json:"merchant_order_id,omitempty" bun:"merchant_order_id"`
 	RecipientName      string      `json:"recipient_name" bun:"recipient_name,notnull" `
 	RecipientPhone     string      `json:"recipient_phone" bun:"recipient_phone,notnull" `
 	RecipientAddress   string      `json:"recipient_address" bun:"recipient_address,notnull" `
@@ -25,20 +23,20 @@ type Order struct {
 	RecipientArea      int64       `json:"recipient_area" bun:"recipient_area,notnull" `
 	DeliveryType       OrderType   `json:"delivery_type" bun:"delivery_type,notnull" `
 	ItemType           ItemType    `json:"item_type" bun:"item_type,notnull" `
-	SpecialInstruction string      `json:"special_instruction,omitempty" bun:"special_instruction"` // Optional field
+	SpecialInstruction string      `json:"special_instruction,omitempty" bun:"special_instruction"`
 	ItemQuantity       int         `json:"item_quantity" bun:"item_quantity,notnull" `
 	ItemWeight         float64     `json:"item_weight" bun:"item_weight,notnull" `
 	AmountToCollect    float64     `json:"amount_to_collect" bun:"amount_to_collect,notnull" `
-	ItemDescription    string      `json:"item_description,omitempty" bun:"item_description"`       // Optional field
-	OrderConsignmentID string      `json:"order_consignment_id" bun:"order_consignment_id,notnull"` // Consignment ID
-	OrderTypeID        int         `json:"order_type_id" bun:"order_type_id"`                       // Order type ID
-	CodFee             float64     `json:"cod_fee" bun:"cod_fee"`                                   // COD fee
-	PromoDiscount      float64     `json:"promo_discount" bun:"promo_discount"`                     // Promo discount
-	Discount           float64     `json:"discount" bun:"discount"`                                 // Discount
-	DeliveryFee        float64     `json:"delivery_fee" bun:"delivery_fee"`                         // Delivery fee
-	OrderStatus        OrderStatus `json:"order_status" bun:"order_status,notnull"`                 // Order status (Pending)
-	OrderType          OrderType   `json:"order_type" bun:"order_type,notnull"`                     // Order type (Delivery)
-	OrderAmount        float64     `json:"order_amount" bun:"order_amount"`                         // Order amount
+	ItemDescription    string      `json:"item_description,omitempty" bun:"item_description"`
+	OrderConsignmentID string      `json:"order_consignment_id" bun:"order_consignment_id,notnull"`
+	OrderTypeID        int         `json:"order_type_id" bun:"order_type_id"`
+	CodFee             float64     `json:"cod_fee" bun:"cod_fee"`
+	PromoDiscount      float64     `json:"promo_discount" bun:"promo_discount"`
+	Discount           float64     `json:"discount" bun:"discount"`
+	DeliveryFee        float64     `json:"delivery_fee" bun:"delivery_fee"`
+	OrderStatus        OrderStatus `json:"order_status" bun:"order_status,notnull"`
+	OrderType          OrderType   `json:"order_type" bun:"order_type"`
+	OrderAmount        float64     `json:"order_amount" bun:"order_amount"`
 	TotalFee           float64     `json:"total_fee" bun:"total_fee"`
 	UserID             int64       `json:"user_id" bun:"user_id"`
 
@@ -60,7 +58,7 @@ func (o *Order) CalculateDeliveryFee(baseDeliveryFee float64) {
 }
 
 func (o *Order) CalculateCodFee() {
-	o.CodFee = utils.CalculatePercentage(o.AmountToCollect, 1) // 1% of OrderAmount
+	o.CodFee = utils.CalculatePercentage(o.AmountToCollect, 1)
 }
 
 func (o *Order) CalculateTotalFee() {
@@ -111,7 +109,6 @@ func (o *Order) Validate() *utils.ResponseError {
 		responseError.Errors["item_type"] = append(responseError.Errors["item_type"], "The item type field is required.")
 	}
 
-	// If errors exist, return them
 	if len(responseError.Errors) > 0 {
 		return responseError
 	}

@@ -42,25 +42,44 @@ func NewRedisCache(initRedisCache *InitRedisCache) IRedisCache {
 func (t *redisCache) CacheOrder(ctx context.Context, order model.Order) error {
 	orderKey := fmt.Sprintf("order:%s", order.OrderConsignmentID) // Use order ID as key
 
-	// Convert time to string (ISO 8601 or Unix timestamp)
-	createdAtStr := order.CreatedAt.Format(time.RFC3339) // Using ISO 8601 format
-	updatedAtStr := order.UpdatedAt.Format(time.RFC3339)
-
 	// Store the order details as a Redis hash
-	_, err := t.client.HSet(ctx, orderKey, map[string]interface{}{
-		"consignment_id":    order.OrderConsignmentID,
-		"merchant_order_id": order.MerchantOrderID,
-		"order_status":      order.OrderStatus,
-		"delivery_fee":      order.DeliveryFee,
-		"created_at":        createdAtStr,
-		"updated_at":        updatedAtStr,
+	result, err := t.client.HSet(ctx, orderKey, map[string]interface{}{
+		"id":                   order.ID,
+		"store_id":             order.StoreID,
+		"merchant_order_id":    order.MerchantOrderID,
+		"recipient_name":       order.RecipientName,
+		"recipient_phone":      order.RecipientPhone,
+		"recipient_address":    order.RecipientAddress,
+		"recipient_city":       order.RecipientCity,
+		"recipient_zone":       order.RecipientZone,
+		"recipient_area":       order.RecipientArea,
+		"delivery_type":        order.DeliveryType.String(),
+		"item_type":            order.ItemType.String(),
+		"special_instruction":  order.SpecialInstruction,
+		"item_quantity":        order.ItemQuantity,
+		"item_weight":          order.ItemWeight,
+		"amount_to_collect":    order.AmountToCollect,
+		"item_description":     order.ItemDescription,
+		"order_consignment_id": order.OrderConsignmentID,
+		"order_type_id":        order.OrderTypeID,
+		"cod_fee":              order.CodFee,
+		"promo_discount":       order.PromoDiscount,
+		"discount":             order.Discount,
+		"delivery_fee":         order.DeliveryFee,
+		"order_status":         order.OrderStatus.String(),
+		"order_amount":         order.OrderAmount,
+		"total_fee":            order.TotalFee,
+		"user_id":              order.UserID,
+		"created_at":           order.CreatedAt.Format(time.RFC3339),
+		"updated_at":           order.UpdatedAt.Format(time.RFC3339),
+		"deleted_at":           order.DeletedAt.Format(time.RFC3339), // Optional: Check if it is a valid timestamp
 	}).Result()
-
 	if err != nil {
-		// Log the error for debugging
 		t.log.Error(ctx, fmt.Sprintf("Error caching order with ID %s: %v", order.OrderConsignmentID, err))
 		return err
 	}
+
+	fmt.Println("cache store result ", result)
 
 	// Add the order to the sorted set with CreatedAt as the score
 	zAddErr := t.client.ZAdd(ctx, "orders", &redis.Z{
@@ -69,7 +88,6 @@ func (t *redisCache) CacheOrder(ctx context.Context, order model.Order) error {
 	}).Err()
 
 	if zAddErr != nil {
-		// Log the error for debugging
 		t.log.Error(ctx, fmt.Sprintf("Error adding order to sorted set for order ID %s: %v", order.OrderConsignmentID, zAddErr))
 		return zAddErr
 	}

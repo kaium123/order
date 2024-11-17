@@ -55,6 +55,7 @@ func (o *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) 
 	reqOrder.DeliveryType = model.Delivery
 	reqOrder.ItemType = model.Parcel
 	reqOrder.OrderTypeID = 1
+	reqOrder.OrderType = model.Delivery
 
 	// Create the order in the repository (DB)
 	order, err := o.OrderRepository.CreateOrder(ctx, reqOrder)

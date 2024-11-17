@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   consul:
     image: consul:1.15.4
@@ -35,6 +33,25 @@ services:
       - cache:/data
     networks:
       - orders-network
+
+  app:
+    image: order-app:latest
+    container_name: orders-app
+    ports:
+      - "8601:8601"
+    environment:
+      ORDERS_CONSUL_URL: "consul:8500"
+      ORDERS_CONSUL_PATH: "orders"
+    depends_on:
+      - db
+      - cache
+      - consul
+    networks:
+      - orders-network
+    volumes:
+      - ./config.yaml:/config.yaml
+    command: ["serve"]
+    restart: unless-stopped
 
 networks:
   orders-network:

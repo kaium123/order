@@ -34,8 +34,8 @@ func New() (conf *Config) {
 // Load the Config from configuration files. This method panics on error.
 func (c *Config) Load() *Config {
 
-	consulPath := os.Getenv("ME_CONSUL_PATH")
-	consulURL := os.Getenv("ME_CONSUL_URL")
+	consulPath := os.Getenv("ORDERS_CONSUL_PATH")
+	consulURL := os.Getenv("ORDERS_CONSUL_URL")
 
 	viper.AddRemoteProvider("consul", consulURL, consulPath)
 	viper.SetConfigType("yaml") // Need to explicitly set this to json
