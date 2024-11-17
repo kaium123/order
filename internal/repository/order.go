@@ -13,7 +13,7 @@ import (
 // IOrder Order is the repository for the Order endpoint.
 type IOrder interface {
 	CreateOrder(ctx context.Context, order *model.Order) (*model.Order, error)
-	FindAllOrders(ctx context.Context, req *model.FindAllRequest) (*model.FindAllResponse, error)
+	FindAllOrders(ctx context.Context, req *model.FindAllRequest) ([]*model.Order, *model.PaginationResponse, error)
 	CancelOrder(ctx context.Context, req *model.OrderCancelRequest) error
 }
 
@@ -57,32 +57,14 @@ func (o *OrderReceiver) CreateOrder(ctx context.Context, order *model.Order) (*m
 	return order, nil
 }
 
-func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllRequest) (*model.FindAllResponse, error) {
-	// Step 1: Query for the total count of matching records
-	total := 0
-	countQuery := o.db.NewSelect().
-		Model((*model.Order)(nil)).
-		ColumnExpr("COUNT(*)").
-		Where("user_id = ?", req.UserId)
-
-	if req.TransferStatus != "" {
-		countQuery.Where("transfer_status = ?", req.TransferStatus)
-	}
-	if req.Archive != 0 {
-		countQuery.Where("archive = ?", req.Archive)
-	}
-
-	err := countQuery.Scan(ctx, &total)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 2: Query for paginated data
+func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllRequest) ([]*model.Order, *model.PaginationResponse, error) {
+	// Step 1: Query for paginated data
 	orders := []*model.Order{}
 	query := o.db.NewSelect().
 		Model((*model.Order)(nil)).
 		Limit(req.Limit).
-		Offset(req.Offset)
+		Offset(req.Offset).
+		Where("user_id = ? and deleted_at is null ", req.UserId)
 
 	if req.TransferStatus != "" {
 		query.Where("transfer_status = ?", req.TransferStatus)
@@ -91,9 +73,10 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 		query.Where("archive = ?", req.Archive)
 	}
 
-	err = query.Scan(ctx, &orders)
+	query.Order("created_at DESC")
+	total, err := query.ScanAndCount(ctx, &orders)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Step 3: Calculate pagination metadata
@@ -101,9 +84,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 	lastPage := (total + req.Limit - 1) / req.Limit
 	totalInPage := len(orders)
 
-	// Step 4: Prepare the utils
-	response := &model.FindAllResponse{
-		Orders:      orders,
+	paginationResponse := &model.PaginationResponse{
 		Total:       total,
 		CurrentPage: currentPage,
 		PerPage:     req.Limit,
@@ -111,7 +92,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 		LastPage:    lastPage,
 	}
 
-	return response, nil
+	return orders, paginationResponse, nil
 }
 
 func (o *OrderReceiver) CancelOrder(ctx context.Context, req *model.OrderCancelRequest) error {

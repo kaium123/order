@@ -4,14 +4,18 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/kaium123/order/internal/cache"
 	"github.com/kaium123/order/internal/common"
 	"github.com/kaium123/order/internal/config"
 	"github.com/kaium123/order/internal/db"
+	"github.com/kaium123/order/internal/db/bundb"
 	"github.com/kaium123/order/internal/handler"
 	"github.com/kaium123/order/internal/log"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
+	"sync"
 )
 
 // orderAPIServer is the API server for Order
@@ -33,29 +37,58 @@ type InitNewAPI struct {
 	Log                *log.Logger
 }
 
+var (
+	dbInstance  *db.DB
+	dbOnce      sync.Once
+	redisClient *redis.Client
+	redisOnce   sync.Once
+)
+
+// getDatabaseInstance ensures a singleton database instance
+func getDatabaseInstance(ctx context.Context, config *bundb.Config, logger *log.Logger) (*db.DB, error) {
+	var err error
+	dbOnce.Do(func() {
+		dbInstance, err = db.New(config, logger)
+		if err != nil {
+			logger.Error(ctx, "failed to initialize database", zap.Error(err))
+			return
+		}
+		// Perform a ping to verify the database connection
+		if pingErr := dbInstance.Ping(); pingErr != nil {
+			logger.Error(ctx, fmt.Sprintf("Failed to ping the database: %v", pingErr))
+			err = pingErr
+			return
+		}
+		logger.Info(ctx, "Database ping successful")
+	})
+	return dbInstance, err
+}
+
+// getRedisClientInstance ensures a singleton Redis client
+func getRedisClientInstance(config *cache.Config) *redis.Client {
+	redisOnce.Do(func() {
+		redisClient = cache.New(config)
+	})
+	return redisClient
+}
+
+// NewAPI initializes the API server with singleton database and Redis instances
 func NewAPI(ctx context.Context, init *InitNewAPI) (Server, error) {
-	// database
-	dbInstance, err := db.New(init.OrderAPIServerOpts.Config.DB, init.Log)
+	// Singleton database instance
+	dbInstance, err := getDatabaseInstance(ctx, init.OrderAPIServerOpts.Config.DB, init.Log)
 	if err != nil {
-		panic(err)
-	}
-
-	// Perform a ping to verify the database connection is working
-	err = dbInstance.Ping()
-	if err != nil {
-		init.Log.Error(ctx, fmt.Sprintf("Failed to ping the database: %v", err))
 		return nil, err
-	} else {
-		init.Log.Info(ctx, "Database ping successful")
 	}
 
-	// Initialize other components like Redis and Echo server
-	redisClient := cache.New(init.OrderAPIServerOpts.Config.Redis)
+	// Singleton Redis client instance
+	redisClient := getRedisClientInstance(init.OrderAPIServerOpts.Config.Redis)
 
+	// Initialize Echo server
 	engine := echo.New()
 	engine.HideBanner = true
 	engine.HidePort = true
 
+	// Register handlers
 	handler.Register(&handler.ServiceRegistry{
 		EchoEngine:  engine,
 		DBInstance:  dbInstance,
@@ -63,14 +96,15 @@ func NewAPI(ctx context.Context, init *InitNewAPI) (Server, error) {
 		Log:         init.Log,
 	})
 
+	// Add middleware
 	engine.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
-
 	engine.Use(requestLogger())
 
+	// Create API server instance
 	s := &orderAPIServer{
 		port:   init.OrderAPIServerOpts.ListenPort,
 		engine: engine,
@@ -78,7 +112,7 @@ func NewAPI(ctx context.Context, init *InitNewAPI) (Server, error) {
 		db:     dbInstance,
 	}
 
-	// Closing the database connection when the server shuts down
+	// Ensure database connection is closed when the server shuts down
 	go func() {
 		<-ctx.Done()
 		dbInstance.DB.Close()

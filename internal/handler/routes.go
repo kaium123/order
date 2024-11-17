@@ -30,12 +30,13 @@ func Register(serviceRegistry *ServiceRegistry) {
 
 	// Inject Order Dependency
 	redisRepository := repository.NewRedisCache(&repository.InitRedisCache{
-		Client: serviceRegistry.RedisClient, Log: serviceRegistry.Log,
+		Client: serviceRegistry.RedisClient,
+		Log:    serviceRegistry.Log,
 	})
 
 	// Initialize JWT middleware
 	jwtMiddleware := middleware.NewJWTMiddleware(middleware.JWTConfig{
-		SecretKey:  "123", // Replace this with your actual secret key
+		SecretKey:  "123",
 		DB:         serviceRegistry.DBInstance,
 		RedisCache: redisRepository,
 	}, serviceRegistry.Log)

@@ -27,7 +27,7 @@ CREATE TABLE refresh_tokens (
 );
 
 INSERT INTO users (user_name, email, password_hash)
-VALUES ('abc', '01901901901@mailinator.com', '321dsaf');
+VALUES ('01901901901@mailinator.com', '01901901901@mailinator.com', '$2a$10$QLWmBwCTIa4HEOEONaIK7uubsyk2vwZIqqvZizKjhiJvQGSPm8qcu');
 
 
 

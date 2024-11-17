@@ -51,6 +51,8 @@ func (t *authHandler) Login(c echo.Context) error {
 
 	// Call the service to handle login
 	token, err := t.service.Login(ctx, &req)
+	fmt.Println(token)
+	fmt.Println(err)
 	if err != nil {
 		t.log.Error(ctx, err.Error())
 		fmt.Println(err)
@@ -82,5 +84,5 @@ func (t *authHandler) Logout(c echo.Context) error {
 	}
 
 	// Return success message for logout
-	return c.JSON(http.StatusOK, "Logged out successfully")
+	return c.JSON(http.StatusCreated, utils.GetResponseData(http.StatusOK, nil, "Successfully logged out"))
 }
