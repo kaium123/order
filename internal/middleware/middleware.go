@@ -55,7 +55,7 @@ func NewJWTMiddleware(config JWTConfig, log *log.Logger) echo.MiddlewareFunc {
 
 			if err != nil {
 				log.Error(ctx, fmt.Sprintf("Invalid token: %v", err))
-				return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, map[string][]string{"token_parsing_error": []string{err.Error()}}, "Unauthorized"))
+				return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, nil, "Unauthorized"))
 			}
 
 			// Validate the token and extract the claims
@@ -63,6 +63,7 @@ func NewJWTMiddleware(config JWTConfig, log *log.Logger) echo.MiddlewareFunc {
 				// Extract the user_id from the claims
 				if userID, ok := claims["user_id"].(float64); ok {
 					key := fmt.Sprintf("access_token:%s", tokenString)
+					fmt.Println("key : ", key)
 					getToken, err := config.RedisCache.GetToken(ctx, key)
 					if err != nil || getToken == "" {
 						log.Error(ctx, "failed to found token from redis")
@@ -73,7 +74,7 @@ func NewJWTMiddleware(config JWTConfig, log *log.Logger) echo.MiddlewareFunc {
 
 						if err != nil || !exists {
 							log.Error(ctx, "invalid token or expired")
-							return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, map[string][]string{"token_validation_error": []string{err.Error()}}, "Unauthorized"))
+							return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, nil, "Unauthorized"))
 						}
 						err = config.RedisCache.StoreToken(ctx, key, tokenString, 10*time.Minute)
 						if err != nil {
@@ -81,11 +82,13 @@ func NewJWTMiddleware(config JWTConfig, log *log.Logger) echo.MiddlewareFunc {
 						}
 					}
 
+					fmt.Println("get token from redis - ", tokenString)
+
 					// Set the user_id in the context
 					c.Set("user_id", int64(userID))
 				} else {
 					log.Error(ctx, "User ID not found in token claims")
-					return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, map[string][]string{"token_validation_error": []string{"user_id not found"}}, "Unauthorized"))
+					return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, nil, "Unauthorized"))
 				}
 
 				// Optionally set all claims in the context if needed
@@ -95,7 +98,7 @@ func NewJWTMiddleware(config JWTConfig, log *log.Logger) echo.MiddlewareFunc {
 				return next(c)
 			} else {
 				log.Error(ctx, "Invalid token claims")
-				return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, map[string][]string{"token_validation_error": []string{err.Error()}}, "Unauthorized"))
+				return c.JSON(responseErr.GetErrorResponse(http.StatusUnauthorized, nil, "Unauthorized"))
 			}
 		}
 	}

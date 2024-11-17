@@ -1,9 +1,10 @@
 package model
 
 import (
-	"fmt"
 	"github.com/kaium123/order/internal/utils"
 	"github.com/uptrace/bun"
+	"math"
+	"regexp"
 	"time"
 )
 
@@ -13,38 +14,57 @@ type Order struct {
 	bun.BaseModel `bun:"table:orders"` // Indicates the table name in the database
 
 	// The fields added in your SQL statement
-	ID                 int64   `json:"id" bun:"id,pk,autoincrement"`                        // Primary Key
-	StoreID            int64   `json:"store_id" bun:"store_id,notnull"`                     // Store ID
-	MerchantOrderID    string  `json:"merchant_order_id,omitempty" bun:"merchant_order_id"` // Optional field
-	RecipientName      string  `json:"recipient_name" bun:"recipient_name,notnull" `
-	RecipientPhone     string  `json:"recipient_phone" bun:"recipient_phone,notnull" `
-	RecipientAddress   string  `json:"recipient_address" bun:"recipient_address,notnull" `
-	RecipientCity      int64   `json:"recipient_city" bun:"recipient_city,notnull" `
-	RecipientZone      int64   `json:"recipient_zone" bun:"recipient_zone,notnull" `
-	RecipientArea      int64   `json:"recipient_area" bun:"recipient_area,notnull" `
-	DeliveryType       int64   `json:"delivery_type" bun:"delivery_type,notnull" `
-	ItemType           int64   `json:"item_type" bun:"item_type,notnull" `
-	SpecialInstruction string  `json:"special_instruction,omitempty" bun:"special_instruction"` // Optional field
-	ItemQuantity       int     `json:"item_quantity" bun:"item_quantity,notnull" `
-	ItemWeight         float64 `json:"item_weight" bun:"item_weight,notnull" `
-	AmountToCollect    float64 `json:"amount_to_collect" bun:"amount_to_collect,notnull" `
-	ItemDescription    string  `json:"item_description,omitempty" bun:"item_description"`       // Optional field
-	OrderConsignmentID string  `json:"order_consignment_id" bun:"order_consignment_id,notnull"` // Consignment ID
-	OrderTypeID        int     `json:"order_type_id" bun:"order_type_id"`                       // Order type ID
-	CodFee             int     `json:"cod_fee" bun:"cod_fee"`                                   // COD fee
-	PromoDiscount      int     `json:"promo_discount" bun:"promo_discount"`                     // Promo discount
-	Discount           int     `json:"discount" bun:"discount"`                                 // Discount
-	DeliveryFee        int     `json:"delivery_fee" bun:"delivery_fee"`                         // Delivery fee
-	OrderStatus        string  `json:"order_status" bun:"order_status,notnull"`                 // Order status (Pending)
-	OrderType          string  `json:"order_type" bun:"order_type,notnull"`                     // Order type (Delivery)
-	OrderAmount        int     `json:"order_amount" bun:"order_amount"`                         // Order amount
-	TotalFee           int     `json:"total_fee" bun:"total_fee"`
-	UserID             int64   `json:"user_id" bun:"user_id"`
+	ID                 int64       `json:"id" bun:"id,pk,autoincrement"`                        // Primary Key
+	StoreID            int64       `json:"store_id" bun:"store_id,notnull"`                     // Store ID
+	MerchantOrderID    string      `json:"merchant_order_id,omitempty" bun:"merchant_order_id"` // Optional field
+	RecipientName      string      `json:"recipient_name" bun:"recipient_name,notnull" `
+	RecipientPhone     string      `json:"recipient_phone" bun:"recipient_phone,notnull" `
+	RecipientAddress   string      `json:"recipient_address" bun:"recipient_address,notnull" `
+	RecipientCity      int64       `json:"recipient_city" bun:"recipient_city,notnull" `
+	RecipientZone      int64       `json:"recipient_zone" bun:"recipient_zone,notnull" `
+	RecipientArea      int64       `json:"recipient_area" bun:"recipient_area,notnull" `
+	DeliveryType       OrderType   `json:"delivery_type" bun:"delivery_type,notnull" `
+	ItemType           ItemType    `json:"item_type" bun:"item_type,notnull" `
+	SpecialInstruction string      `json:"special_instruction,omitempty" bun:"special_instruction"` // Optional field
+	ItemQuantity       int         `json:"item_quantity" bun:"item_quantity,notnull" `
+	ItemWeight         float64     `json:"item_weight" bun:"item_weight,notnull" `
+	AmountToCollect    float64     `json:"amount_to_collect" bun:"amount_to_collect,notnull" `
+	ItemDescription    string      `json:"item_description,omitempty" bun:"item_description"`       // Optional field
+	OrderConsignmentID string      `json:"order_consignment_id" bun:"order_consignment_id,notnull"` // Consignment ID
+	OrderTypeID        int         `json:"order_type_id" bun:"order_type_id"`                       // Order type ID
+	CodFee             float64     `json:"cod_fee" bun:"cod_fee"`                                   // COD fee
+	PromoDiscount      float64     `json:"promo_discount" bun:"promo_discount"`                     // Promo discount
+	Discount           float64     `json:"discount" bun:"discount"`                                 // Discount
+	DeliveryFee        float64     `json:"delivery_fee" bun:"delivery_fee"`                         // Delivery fee
+	OrderStatus        OrderStatus `json:"order_status" bun:"order_status,notnull"`                 // Order status (Pending)
+	OrderType          OrderType   `json:"order_type" bun:"order_type,notnull"`                     // Order type (Delivery)
+	OrderAmount        float64     `json:"order_amount" bun:"order_amount"`                         // Order amount
+	TotalFee           float64     `json:"total_fee" bun:"total_fee"`
+	UserID             int64       `json:"user_id" bun:"user_id"`
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" bun:"created_at,default:current_timestamp,notnull"`                             // Created timestamp
 	UpdatedAt time.Time `json:"updated_at" bun:"updated_at,default:current_timestamp,nullzero,onupdate:current_timestamp"` // Updated timestamp
 	DeletedAt time.Time `json:"deleted_at" bun:"deleted_at,soft_delete,nullzero"`                                          // Soft delete timestamp
+}
+
+func (o *Order) CalculateDeliveryFee(baseDeliveryFee float64) {
+	if o.ItemWeight <= 0.5 {
+		o.DeliveryFee = baseDeliveryFee
+	} else if o.ItemWeight > 0.5 && o.ItemWeight <= 1 {
+		o.DeliveryFee = baseDeliveryFee + 10
+	} else {
+		extra := math.Ceil(o.ItemWeight - 1)
+		o.DeliveryFee = baseDeliveryFee + 10 + (extra * 15)
+	}
+}
+
+func (o *Order) CalculateCodFee() {
+	o.CodFee = utils.CalculatePercentage(o.AmountToCollect, 1) // 1% of OrderAmount
+}
+
+func (o *Order) CalculateTotalFee() {
+	o.TotalFee = o.CodFee + o.DeliveryFee
 }
 
 // Validate validates the Order fields and returns errors in the required format.
@@ -56,7 +76,8 @@ func (o *Order) Validate() *utils.ResponseError {
 		Errors:  make(map[string][]string),
 	}
 
-	fmt.Println(o.StoreID)
+	// Regex pattern for Bangladeshi phone numbers
+	phoneRegex := regexp.MustCompile(`^(01)[3-9]{1}[0-9]{8}$`)
 
 	// Manual validations
 	if o.StoreID <= 0 {
@@ -68,6 +89,8 @@ func (o *Order) Validate() *utils.ResponseError {
 	}
 	if o.RecipientPhone == "" {
 		responseError.Errors["recipient_phone"] = append(responseError.Errors["recipient_phone"], "The recipient phone field is required.")
+	} else if !phoneRegex.MatchString(o.RecipientPhone) {
+		responseError.Errors["recipient_phone"] = append(responseError.Errors["recipient_phone"], "The recipient phone number is invalid.")
 	}
 	if o.RecipientAddress == "" {
 		responseError.Errors["recipient_address"] = append(responseError.Errors["recipient_address"], "The recipient address field is required.")
@@ -122,17 +145,106 @@ type FindAllRequest struct {
 }
 
 type CreateOrderResponse struct {
-	ConsignmentID   string `json:"consignment_id"`
-	MerchantOrderID string `json:"merchant_order_id"`
-	OrderStatus     string `json:"order_status"`
-	DeliveryFee     int    `json:"delivery_fee"`
+	ConsignmentID   string  `json:"consignment_id"`
+	MerchantOrderID string  `json:"merchant_order_id"`
+	OrderStatus     string  `json:"order_status"`
+	DeliveryFee     float64 `json:"delivery_fee"`
 }
 
 type FindAllResponse struct {
-	Orders      []*Order `json:"orders"`
-	Total       int      `json:"total"`
-	CurrentPage int      `json:"current_page"`
-	PerPage     int      `json:"per_page"`
-	TotalInPage int      `json:"total_in_page"`
-	LastPage    int      `json:"last_page"`
+	Orders      []*OrderResponse `json:"orders"`
+	Total       int              `json:"total"`
+	CurrentPage int              `json:"current_page"`
+	PerPage     int              `json:"per_page"`
+	TotalInPage int              `json:"total_in_page"`
+	LastPage    int              `json:"last_page"`
+}
+
+// Order represents the structure of the order response.
+type OrderResponse struct {
+	OrderConsignmentID string    `json:"order_consignment_id"`
+	OrderCreatedAt     time.Time `json:"order_created_at"`
+	OrderDescription   string    `json:"order_description"`
+	MerchantOrderID    string    `json:"merchant_order_id"`
+	RecipientName      string    `json:"recipient_name"`
+	RecipientAddress   string    `json:"recipient_address"`
+	RecipientPhone     string    `json:"recipient_phone"`
+	OrderAmount        float64   `json:"order_amount"`
+	TotalFee           float64   `json:"total_fee"`
+	Instruction        string    `json:"instruction"`
+	OrderTypeID        int       `json:"order_type_id"`
+	CODFee             float64   `json:"cod_fee"`
+	PromoDiscount      float64   `json:"promo_discount"`
+	Discount           float64   `json:"discount"`
+	DeliveryFee        float64   `json:"delivery_fee"`
+	OrderStatus        string    `json:"order_status"`
+	OrderType          string    `json:"order_type"`
+	ItemType           string    `json:"item_type"`
+}
+
+type OrderStatus int
+
+const (
+	Pending    OrderStatus = iota // 0
+	Processing                    // 1
+	Completed                     // 2
+)
+
+// String provides a string representation of the OrderStatus enum.
+func (s OrderStatus) String() string {
+	switch s {
+	case Pending:
+		return "Pending"
+	case Processing:
+		return "Processing"
+	case Completed:
+		return "Completed"
+	default:
+		return "Unknown"
+	}
+}
+
+// OrderType represents the type of an order.
+type OrderType int
+
+const (
+	UnknownOrderType OrderType = iota // 0
+	Pickup
+	Delivery // 1
+)
+
+// String provides a string representation of the OrderType enum.
+func (o OrderType) String() string {
+	switch o {
+	case Delivery:
+		return "Delivery"
+	case Pickup:
+		return "Pickup"
+	default:
+		return "Unknown"
+	}
+}
+
+// ItemType represents the type of an item.
+type ItemType int
+
+const (
+	UnknownItemType ItemType = iota // 0
+	Document                        // 1
+	Parcel
+	Other // 2
+)
+
+// String provides a string representation of the ItemType enum.
+func (i ItemType) String() string {
+	switch i {
+	case Parcel:
+		return "Parcel"
+	case Document:
+		return "Document"
+	case Other:
+		return "Other"
+	default:
+		return "Unknown"
+	}
 }

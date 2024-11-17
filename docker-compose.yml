@@ -1,0 +1,47 @@
+version: '3'
+
+services:
+  consul:
+    image: consul:1.15.4
+    container_name: consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    networks:
+      - orders-network
+
+  db:
+    container_name: db
+    image: postgres:14.1-alpine
+    ports:
+      - "54321:5432"
+    volumes:
+      - db-volume:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: orders
+      POSTGRES_PASSWORD: 123456
+    networks:
+      - orders-network
+    restart: unless-stopped
+
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - cache:/data
+    networks:
+      - orders-network
+
+networks:
+  orders-network:
+    driver: bridge
+
+volumes:
+  db-volume:
+    driver: local
+  cache:
+    driver: local

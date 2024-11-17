@@ -45,6 +45,7 @@ func MigrateFromFS(db *sql.DB, direction Direction, database string,
 	files fs.FS) (err error) {
 	src, err := httpfs.New(http.FS(files), "migrations")
 	if err != nil {
+		fmt.Println("httpsfs init error ", err)
 		return err
 	}
 
@@ -64,13 +65,13 @@ func MigrateFromSource(db *sql.DB, direction Direction, database string,
 	if err != nil {
 		log.Fatalf("Failed to create migration instance: %v", err)
 	}
-	version, _, err := m.Version()
-	if err != nil {
-		fmt.Println("error ", err)
-		return err
-	}
+	//version, _, err := m.Version()
+	//if err != nil {
+	//	fmt.Println("error ", err)
+	//	return err
+	//}
 
-	fmt.Println("current migration version -- ", version)
+	//fmt.Println("current migration version -- ", version)
 
 	log.Println("Running migration...")
 	switch direction {

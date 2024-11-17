@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kaium123/order/internal/log"
 	"github.com/kaium123/order/internal/model"
@@ -47,27 +48,32 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 	// Validate user credentials
 	user, err := u.UserRepository.FindUserByUserNameOrEmail(ctx, reqLogin)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
 	// Compare the provided password with the stored hash
 	if !CheckPasswordHash(reqLogin.Password, user.PasswordHash) {
-		return nil, err
+		u.log.Error(ctx, "password not matched")
+		return nil, errors.New("password not matched")
 	}
 
 	err = u.Logout(ctx, user.ID)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
 	// Generate JWT tokens (access and refresh tokens)
 	accessToken, err := u.jwtService.GenerateAccessToken(user.ID)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
 	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
@@ -80,6 +86,7 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		Expiry:    expirey, // Access token expires in 1 hour
 	})
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
@@ -90,6 +97,7 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		Expiry:    time.Now().Add(time.Hour * 24 * 7), // Refresh token expires in 7 days
 	})
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
@@ -97,13 +105,13 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 	key := fmt.Sprintf("access_token:%s", accessToken)
 	err = u.redisCache.StoreToken(ctx, key, accessToken, 10*time.Minute)
 	if err != nil {
-		return nil, fmt.Errorf("failed to store access token: %w", err)
+		u.log.Error(ctx, err.Error())
 	}
 
 	key = fmt.Sprintf("refresh_token:%s", refreshToken)
 	err = u.redisCache.StoreToken(ctx, key, refreshToken, 10*time.Minute)
 	if err != nil {
-		return nil, fmt.Errorf("failed to store refresh token: %w", err)
+		u.log.Error(ctx, err.Error())
 	}
 
 	// Return the utils with tokens
@@ -135,14 +143,23 @@ func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	}
 
 	for _, accessToken := range accessTokens {
-		key := fmt.Sprintf("access_token:%s", accessToken)
+		fmt.Println(" access ", accessToken.Token)
+		key := fmt.Sprintf("access_token:%s", accessToken.Token)
+		fmt.Println("key : ", key)
 		err := u.redisCache.DeleteKey(ctx, key)
 		if err != nil {
 			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
 		}
+		token, err := u.redisCache.GetToken(ctx, key)
+		if err != nil {
+			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
+		}
+
+		fmt.Println("got token ", token)
 	}
 	for _, refreshToken := range refreshTokens {
-		key := fmt.Sprintf("refresh_token:%s", refreshToken)
+		fmt.Println(refreshToken.Token)
+		key := fmt.Sprintf("refresh_token:%s", refreshToken.Token)
 		err := u.redisCache.DeleteKey(ctx, key)
 		if err != nil {
 			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))

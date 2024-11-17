@@ -41,8 +41,20 @@ func NewOrder(initOrderService *InitOrderService) IOrder {
 }
 func (o *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) (*model.CreateOrderResponse, error) {
 	// Generate consignment ID
-	consignmentID := GenerateConsignmentID("CN", 6)
+	consignmentID := GenerateConsignmentID("DA", 6)
 	reqOrder.OrderConsignmentID = consignmentID
+	if reqOrder.RecipientCity == 1 {
+		reqOrder.CalculateDeliveryFee(60)
+	} else {
+		reqOrder.CalculateDeliveryFee(100)
+	}
+
+	reqOrder.CalculateCodFee()
+	reqOrder.CalculateTotalFee()
+	reqOrder.OrderStatus = model.Pending
+	reqOrder.DeliveryType = model.Delivery
+	reqOrder.ItemType = model.Parcel
+	reqOrder.OrderTypeID = 1
 
 	// Create the order in the repository (DB)
 	order, err := o.OrderRepository.CreateOrder(ctx, reqOrder)
@@ -60,7 +72,7 @@ func (o *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) 
 	return &model.CreateOrderResponse{
 		ConsignmentID:   order.OrderConsignmentID,
 		MerchantOrderID: order.MerchantOrderID,
-		OrderStatus:     order.OrderStatus,
+		OrderStatus:     order.OrderStatus.String(),
 		DeliveryFee:     order.DeliveryFee,
 	}, nil
 }
@@ -80,20 +92,53 @@ func (o *OrderReceiver) CancelOrder(ctx context.Context, reqParams *model.OrderC
 }
 
 func (o *OrderReceiver) FindAllOrders(ctx context.Context, reqParams *model.FindAllRequest) (*model.FindAllResponse, error) {
-	allOrders, err := o.redisCache.FindAllOrders(ctx, reqParams)
+	//allOrders, err := o.redisCache.FindAllOrders(ctx, reqParams)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//for _, order := range allOrders {
+	//	fmt.Println(order)
+	//}
+	orders, paginationResponse, err := o.OrderRepository.FindAllOrders(ctx, reqParams)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, order := range allOrders {
-		fmt.Println(order)
-	}
-	orders, err := o.OrderRepository.FindAllOrders(ctx, reqParams)
-	if err != nil {
-		return nil, err
+	response := &model.FindAllResponse{
+		Total:       paginationResponse.Total,
+		CurrentPage: paginationResponse.CurrentPage,
+		PerPage:     paginationResponse.PerPage,
+		TotalInPage: paginationResponse.TotalInPage,
+		LastPage:    paginationResponse.LastPage,
 	}
 
-	return orders, nil
+	for _, order := range orders {
+		orderResponse := &model.OrderResponse{
+			OrderConsignmentID: order.OrderConsignmentID,
+			OrderCreatedAt:     order.CreatedAt,
+			OrderDescription:   order.ItemDescription,
+			MerchantOrderID:    order.MerchantOrderID,
+			RecipientName:      order.RecipientName,
+			RecipientAddress:   order.RecipientAddress,
+			RecipientPhone:     order.RecipientPhone,
+			OrderAmount:        order.AmountToCollect,
+			TotalFee:           order.TotalFee,
+			Instruction:        order.SpecialInstruction,
+			OrderTypeID:        order.OrderTypeID,
+			CODFee:             order.CodFee,
+			PromoDiscount:      order.PromoDiscount,
+			Discount:           order.Discount,
+			DeliveryFee:        order.DeliveryFee,
+			OrderStatus:        order.OrderStatus.String(),
+			OrderType:          order.DeliveryType.String(),
+			ItemType:           order.ItemType.String(),
+		}
+
+		response.Orders = append(response.Orders, orderResponse)
+	}
+
+	return response, nil
 }
 
 // GenerateConsignmentID generates a unique consignment ID

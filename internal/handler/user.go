@@ -51,6 +51,8 @@ func (t *authHandler) Login(c echo.Context) error {
 
 	// Call the service to handle login
 	token, err := t.service.Login(ctx, &req)
+	fmt.Println(token)
+	fmt.Println(err)
 	if err != nil {
 		t.log.Error(ctx, err.Error())
 		fmt.Println(err)

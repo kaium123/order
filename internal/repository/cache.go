@@ -182,13 +182,13 @@ func (t *redisCache) FindAllOrders(ctx context.Context, req *model.FindAllReques
 		order := model.Order{
 			OrderConsignmentID: orderData["consignment_id"],
 			MerchantOrderID:    orderData["merchant_order_id"],
-			OrderStatus:        orderData["order_status"],
-			CreatedAt:          parseTime(orderData["created_at"]), // Use a helper function to parse time
-			UpdatedAt:          parseTime(orderData["updated_at"]),
+			//OrderStatus:        model.OrderStatus(orderData["order_status"]),
+			CreatedAt: parseTime(orderData["created_at"]), // Use a helper function to parse time
+			UpdatedAt: parseTime(orderData["updated_at"]),
 		}
 
 		// Apply filtering if an order status is specified
-		if req.TransferStatus != "" && order.OrderStatus != req.TransferStatus {
+		if req.TransferStatus != "" && order.OrderStatus.String() != req.TransferStatus {
 			continue // Skip this order if it doesn't match the filter
 		}
 
