@@ -39,6 +39,8 @@ type Order struct {
 	OrderAmount        float64     `json:"order_amount" bun:"order_amount"`
 	TotalFee           float64     `json:"total_fee" bun:"total_fee"`
 	UserID             int64       `json:"user_id" bun:"user_id"`
+	TransferStatus     int64       `json:"transfer_status" bun:"transfer_status"`
+	Archive            int64       `json:"archive" bun:"archive"`
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" bun:"created_at,default:current_timestamp,notnull"`                             // Created timestamp
