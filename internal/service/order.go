@@ -62,6 +62,7 @@ func (o *OrderReceiver) CreateOrder(ctx context.Context, reqOrder *model.Order) 
 	// Create the order in the repository (DB)
 	order, err := o.OrderRepository.CreateOrder(ctx, reqOrder)
 	if err != nil {
+		o.log.Error(ctx, err.Error())
 		return nil, err
 	}
 
@@ -105,6 +106,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, reqParams *model.Find
 	//}
 	orders, paginationResponse, err := o.OrderRepository.FindAllOrders(ctx, reqParams)
 	if err != nil {
+		o.log.Error(ctx, err.Error())
 		return nil, err
 	}
 

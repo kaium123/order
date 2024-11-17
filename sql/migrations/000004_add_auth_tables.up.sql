@@ -1,28 +1,28 @@
 
 CREATE TABLE users (
-   id SERIAL PRIMARY KEY,               -- Auto-incrementing user ID
+   id SERIAL PRIMARY KEY,
    user_name VARCHAR(255) NOT NULL UNIQUE,
-   email VARCHAR(255) NOT NULL UNIQUE,   -- User's email (must be unique)
-   password_hash VARCHAR(255) NOT NULL, -- Hashed password
-   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the user was created
-   updated_at TIMESTAMP DEFAULT NULL -- Timestamp when the user was last updated
+   email VARCHAR(255) NOT NULL UNIQUE,
+   password_hash VARCHAR(255) NOT NULL,
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP DEFAULT NULL
 );
 
 CREATE TABLE access_tokens (
-   id SERIAL PRIMARY KEY,               -- Auto-incrementing token ID
-   token VARCHAR(255) NOT NULL,          -- JWT access token
-   user_id INT NOT NULL,                 -- Reference to the user who owns the token
-   expiry TIMESTAMP NOT NULL,           -- Expiration date of the access token
-   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the token was created
+   id SERIAL PRIMARY KEY,
+   token VARCHAR(255) NOT NULL,
+   user_id INT NOT NULL,
+   expiry TIMESTAMP NOT NULL,
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE refresh_tokens (
-    id SERIAL PRIMARY KEY,               -- Auto-incrementing token ID
-    token VARCHAR(255) NOT NULL,          -- JWT refresh token
-    user_id INT NOT NULL,                 -- Reference to the user who owns the token
-    expiry TIMESTAMP NOT NULL,           -- Expiration date of the refresh token
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the token was created
+    id SERIAL PRIMARY KEY,
+    token VARCHAR(255) NOT NULL,
+    user_id INT NOT NULL,
+    expiry TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

@@ -25,7 +25,6 @@ COPY ./ ./
 
 # Build the Go app
 RUN CGO_ENABLED=0 GOFLAGS=-mod=vendor GOOS=linux go build -a -installsuffix 'static' -o /app cmd/*.go
-#RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main.
 
 ######## Start a new stage from scratch #######
 # Final stage: the running container.
@@ -39,7 +38,7 @@ COPY --from=builder /app /app
 
 # As we're going to run the executable as an unprivileged user, we can't bind
 # to ports below 1024.
-EXPOSE 8080
+EXPOSE 8601
 
 # Perform any further action as an unprivileged user.
 USER nobody:nobody

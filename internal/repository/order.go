@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"github.com/kaium123/order/internal/db"
 	"github.com/kaium123/order/internal/log"
 	"github.com/kaium123/order/internal/model"
@@ -37,15 +36,6 @@ func NewOrder(initOrderRepository *InitOrderRepository) IOrder {
 
 // CreateOrder creates a new order in the database.
 func (o *OrderReceiver) CreateOrder(ctx context.Context, order *model.Order) (*model.Order, error) {
-	// Check if the database connection is initialized
-	if o.db == nil {
-		return nil, fmt.Errorf("database is not initialized")
-	}
-
-	// Attempt a simple query to ensure the connection is still valid
-	if err := o.db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
-	}
 
 	// Use the database connection to insert the order
 	_, err := o.db.NewInsert().Model(order).Exec(ctx)
@@ -76,6 +66,7 @@ func (o *OrderReceiver) FindAllOrders(ctx context.Context, req *model.FindAllReq
 	query.Order("created_at DESC")
 	total, err := query.ScanAndCount(ctx, &orders)
 	if err != nil {
+		o.log.Error(ctx, err.Error())
 		return nil, nil, err
 	}
 

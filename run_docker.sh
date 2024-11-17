@@ -22,6 +22,7 @@ echo "Configuration uploaded successfully to Consul."
 echo "Vendoring Go modules..."
 go mod vendor
 
+go mod tidy
 docker rmi -f order-app:latest
 
 docker build -t order-app .

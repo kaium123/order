@@ -59,6 +59,7 @@ func (u *UserReceiver) FindUserByUserNameOrEmail(ctx context.Context, req *model
 func (u *UserReceiver) SaveAccessToken(ctx context.Context, accessToken *model.AccessToken) error {
 	_, err := u.db.NewInsert().Model(accessToken).Exec(ctx)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return err
 	}
 	return nil
@@ -68,6 +69,7 @@ func (u *UserReceiver) SaveAccessToken(ctx context.Context, accessToken *model.A
 func (u *UserReceiver) SaveRefreshToken(ctx context.Context, refreshToken *model.RefreshToken) error {
 	_, err := u.db.NewInsert().Model(refreshToken).Exec(ctx)
 	if err != nil {
+		u.log.Error(ctx, err.Error())
 		return err
 	}
 	return nil
@@ -118,6 +120,7 @@ func (u *UserReceiver) GenerateAccessToken(userID int64) (*model.AccessToken, er
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
+		u.log.Error(context.Background(), err.Error())
 		return nil, err
 	}
 

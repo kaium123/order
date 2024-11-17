@@ -83,7 +83,7 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		Token:     accessToken,
 		UserID:    user.ID,
 		CreatedAt: time.Now(),
-		Expiry:    expirey, // Access token expires in 1 hour
+		Expiry:    expirey,
 	})
 	if err != nil {
 		u.log.Error(ctx, err.Error())
@@ -94,7 +94,7 @@ func (u *UserReceiver) Login(ctx context.Context, reqLogin *model.UserLoginReque
 		Token:     refreshToken,
 		UserID:    user.ID,
 		CreatedAt: time.Now(),
-		Expiry:    time.Now().Add(time.Hour * 24 * 7), // Refresh token expires in 7 days
+		Expiry:    time.Now().Add(time.Hour * 24 * 7),
 	})
 	if err != nil {
 		u.log.Error(ctx, err.Error())
@@ -128,18 +128,21 @@ func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	// Remove the access and refresh tokens from the database and cache
 	accessTokens, err := u.UserRepository.RemoveAccessToken(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to remove access token: %v", err)
+		u.log.Error(ctx, err.Error())
+		return err
 	}
 
 	refreshTokens, err := u.UserRepository.RemoveRefreshToken(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to remove refresh token: %v", err)
+		u.log.Error(ctx, err.Error())
+		return err
 	}
 
 	// Optionally, invalidate session in Redis
 	err = u.redisCache.InvalidateSession(ctx, userID)
 	if err != nil {
-		u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
+		u.log.Error(ctx, err.Error())
+		return err
 	}
 
 	for _, accessToken := range accessTokens {

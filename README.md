@@ -1,4 +1,12 @@
 ### Project Setup
+### Clone the repository
+```bash
+git clone https://github.com/kaium123/order.git
+```
+### Install Dependecies
+```bash
+go mod tidy
+```
 #### Prerequisites:
 - Docker (for running containers)
 - Docker Compose (for managing multi-container applications)
