@@ -84,5 +84,5 @@ func (t *authHandler) Logout(c echo.Context) error {
 	}
 
 	// Return success message for logout
-	return c.JSON(http.StatusOK, "Logged out successfully")
+	return c.JSON(http.StatusCreated, utils.GetResponseData(http.StatusOK, nil, "Successfully logged out"))
 }

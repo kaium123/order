@@ -143,22 +143,13 @@ func (u *UserReceiver) Logout(ctx context.Context, userID int64) error {
 	}
 
 	for _, accessToken := range accessTokens {
-		fmt.Println(" access ", accessToken.Token)
 		key := fmt.Sprintf("access_token:%s", accessToken.Token)
-		fmt.Println("key : ", key)
 		err := u.redisCache.DeleteKey(ctx, key)
 		if err != nil {
 			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
 		}
-		token, err := u.redisCache.GetToken(ctx, key)
-		if err != nil {
-			u.log.Error(ctx, fmt.Sprintf("Failed to invalidate session for user %s: %v", userID, err))
-		}
-
-		fmt.Println("got token ", token)
 	}
 	for _, refreshToken := range refreshTokens {
-		fmt.Println(refreshToken.Token)
 		key := fmt.Sprintf("refresh_token:%s", refreshToken.Token)
 		err := u.redisCache.DeleteKey(ctx, key)
 		if err != nil {
